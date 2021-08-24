@@ -20,6 +20,7 @@ df = pd.read_csv(data_file, delimiter="\t")
 # important parameters
 Itot_y_max_value = 1  # for aligning Radius and ECRH signals
 ne_flag = 0  # if ne signal exists ne_flag = 1 otherwise ne_flag = 0
+ignore_itot_diapasons_flag = 0
 accuracy = 1000  # accuracy for spline radius derivative recommend value: 500 - 1000
 scans_limit = 100
 # global variables counter, scan_counter. In functions: plt_scan_counter_update, span_onselect, btn_delete_last_scan
@@ -47,10 +48,9 @@ plt.xlabel("t (ms)")  # set x axis label
 # filters Itot and get time diapasons with signal
 # function goes through values of Itot signal. If its lower then threshold - pass, otherwise get time diapasons
 def get_time_diapasons_from_itot(data_list_x, data_list_y, threshold, min_time_diapason):
-    time_diapasons = []
-    diapason_indexes = []
+    time_diapasons = []  # list with itot time diapasons
+    diapason_indexes = []  # list with indexes of itot_x for accessing itot_y
     flag = 0
-
     for i in range(len(data_list_y)):
         if data_list_y[i] < threshold:
             if flag == 0:
@@ -210,15 +210,19 @@ def create_list_file(list_scans, list_ne_means):
 def func_btn_create_lists_on_clicked(_):
     done_scans = []  # list for clean scans [(t1,t2),(*,*),...] diapasons of Itot
     if counter > 0:  # if counter more than 0
-        # print('Create lists')
-        for span in list_axvspans:  # go through created spans
-            for itot in list_axvspans_Itot_spans:  # go through itot spans
-                # checking interception between Itot diapasons and created spans
-                diapason = intercept_intervals(span.get_xy()[0][0], span.get_xy()[-2][0],
-                                               itot.get_xy()[0][0],
-                                               itot.get_xy()[-2][0])
-                if diapason is not None:
-                    done_scans.append(diapason)  # adding diapasons to list
+        if len(list_axvspans_Itot_spans) > 0 and ignore_itot_diapasons_flag == 0:
+            # print('Create lists')
+            for span in list_axvspans:  # go through created spans
+                for itot in list_axvspans_Itot_spans:  # go through itot spans
+                    # checking interception between Itot diapasons and created spans
+                    diapason = intercept_intervals(span.get_xy()[0][0], span.get_xy()[-2][0],
+                                                   itot.get_xy()[0][0],
+                                                   itot.get_xy()[-2][0])
+                    if diapason is not None:
+                        done_scans.append(diapason)  # adding diapasons to list
+        elif ignore_itot_diapasons_flag == 1:
+            for span in list_axvspans:
+                done_scans.append((round(span.get_xy()[0][0], 2), round(span.get_xy()[-2][0], 2)))
         done_scans.sort()  # sorting diapasons
         print(done_scans)  # printing diapasons
         mean_ne = mean_value_ne(list_ne_x, list_ne_y, done_scans)  # getting list of ne mean values of itot intervals
@@ -226,6 +230,18 @@ def func_btn_create_lists_on_clicked(_):
             print(mean_ne)
         create_list_file(done_scans, mean_ne)
         done_scans.clear()  # clearing diapasons list after saving
+
+
+def ignore_itot_diapasons(_):
+    global ignore_itot_diapasons_flag
+    if ignore_itot_diapasons_flag == 0:
+        ignore_itot_diapasons_flag = 1
+        for _ in range(len(list_axvspans_Itot_spans)):  # for cleaning all itot spans one by one
+            list_axvspans_Itot_spans[-1].remove()  # remove last itot span from the plot
+            list_axvspans_Itot_spans.pop(-1)  # remove last element from the itot spans list
+    else:
+        ignore_itot_diapasons_flag = 0
+        func_sliders_update(threshold_slider.val)
 
 
 # Itot - loading and analyzing Itot signal
@@ -279,8 +295,9 @@ if {'Itot_x', 'Itot_y'}.issubset(df.columns):  # does Itot signal exist in data 
     btn_create_lists.on_clicked(
         func_btn_create_lists_on_clicked)  # if button clicked - execute function btn_create_lists
 
-    axCheckButton = plt.axes([0.03, 0.4, 0.15, 0.15])
-    checkbox = CheckButtons(axCheckButton, ['Ignore Itot'], [True])
+    axCheckButton = plt.axes([0.01, 0.35, 0.08, 0.13])
+    checkbox = CheckButtons(axCheckButton, ['Ignore\nItot\nDiapasons'], [False])
+    checkbox.on_clicked(ignore_itot_diapasons)
 
 # Phi - loading and plotting Phi signal
 if {'Phi_x', 'Phi_y'}.issubset(df.columns):
@@ -349,4 +366,3 @@ fig.canvas.mpl_connect('pick_event', on_pick_legend)  # if legend item is presse
 # mng = plt.get_current_fig_manager()
 # mng.window.state('zoomed')
 plt.show()  # show plot
-print("Started")

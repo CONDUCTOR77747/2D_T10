@@ -349,3 +349,4 @@ fig.canvas.mpl_connect('pick_event', on_pick_legend)  # if legend item is presse
 # mng = plt.get_current_fig_manager()
 # mng.window.state('zoomed')
 plt.show()  # show plot
+print("Started")

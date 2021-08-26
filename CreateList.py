@@ -1,23 +1,24 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.widgets import SpanSelector, Cursor, Button, Slider, CheckButtons
-import numpy as np
 from statistics import mean
+import scipy.signal
 
 # required libraries: pandas, matplotlib, scipy, numpy, statistics
 # data file columns: Itot, Phi, ne, Radius, ECRH. Data file name: T10_%shot_number%_B%_I%_zdfilter%.
 # First row must be: "Itot_x	Itot_y	Phi_x	Phi_y	ne_x	ne_y	Radius_x	Radius_y	ECRH_x	ECRH_y"
 # or if there is no ECRH: "Itot_x	Itot_y	Phi_x	Phi_y	ne_x	ne_y	Radius_x	Radius_y"
 # or if there is no ECRH, ne: "Itot_x	Itot_y	Phi_x	Phi_y	Radius_x	Radius_y"
-data_file = "T10_test2_B24_I230_zdfilter0.5.dat"  # data file name to load
+data_file = "T10_69316_B24_I230_zdfilter0.5.dat"  # data file name to load
 # parameters of signal
-shot = '73088'
+shot = '69316'
 energy = '220'
 
 # reading data from data file via pandas library. (Creating pandas dataframe)
 df = pd.read_csv(data_file, delimiter="\t")
 
 # important parameters
+decimate_factor = 15  # 1-no changes in data. 2-50 - downsampling signals - better for speed and low quality.
 Itot_y_max_value = 1  # for aligning Radius and ECRH signals
 ne_flag = 0  # if ne signal exists ne_flag = 1 otherwise ne_flag = 0
 ignore_itot_diapasons_flag = 0
@@ -199,7 +200,7 @@ def create_list_file(list_scans, list_ne_means):
     if list_ne_means is not None:
         for i in range(len(list_scans)):
             print("T10HIBP::Itot{relosc333, slit3, clean, noz, shot" + shot + ", from" + str(list_scans[i][0]) + "to" +
-                  str(list_scans[i][1]) + "} !" + list_ne_means[i] + " #" + shot + ' E = ' + energy)
+                  str(list_scans[i][1]) + "} !" + str(list_ne_means[i]) + " #" + shot + ' E = ' + energy)
     else:
         for i in range(len(list_scans)):
             print("T10HIBP::Itot{relosc333, slit3, clean, noz, shot" + shot + ", from" + str(list_scans[i][0]) + "to" +
@@ -248,6 +249,8 @@ def ignore_itot_diapasons(_):
 if {'Itot_x', 'Itot_y'}.issubset(df.columns):  # does Itot signal exist in data file
     list_Itot_y = df['Itot_y'].tolist()  # loading Itot signals to list
     list_Itot_x = df['Itot_x'].tolist()
+    list_Itot_x = scipy.signal.decimate(list_Itot_x, decimate_factor)
+    list_Itot_y = scipy.signal.decimate(list_Itot_y, decimate_factor)
     Itot_y_max_value = max(list_Itot_y)  # for aligning Radius and ECRH signals
     # Plotting Itot Signal
     plot_Itot, = ax.plot(list_Itot_x, list_Itot_y, label='Itot (kA)', color='royalblue')
@@ -303,6 +306,8 @@ if {'Itot_x', 'Itot_y'}.issubset(df.columns):  # does Itot signal exist in data 
 if {'Phi_x', 'Phi_y'}.issubset(df.columns):
     list_Phi_y = df['Phi_y'].tolist()  # loading Phi signals to list
     list_Phi_x = df['Phi_x'].tolist()
+    list_Phi_x = scipy.signal.decimate(list_Phi_x, decimate_factor)
+    list_Phi_y = scipy.signal.decimate(list_Phi_y, decimate_factor)
     # Plotting Phi Signal
     plot_Phi, = ax.plot(list_Phi_x, list_Phi_y, label='Phi (kV)', color='magenta')
 
@@ -323,7 +328,8 @@ if {'ne_x', 'ne_y'}.issubset(df.columns):
 if {'Radius_x', 'Radius_y'}.issubset(df.columns):
     list_Radius_y = df['Radius_y'].tolist()  # loading Radius signals to list
     list_Radius_x = df['Radius_x'].tolist()
-
+    list_Radius_x = scipy.signal.decimate(list_Radius_x, decimate_factor)
+    list_Radius_y = scipy.signal.decimate(list_Radius_y, decimate_factor)
     # aligning radius
     Radius_y_min_value = min(list_Radius_y)  # for aligning Radius
     Radius_y_max_value = max(list_Radius_y)
@@ -351,6 +357,7 @@ if {'ECRH_x', 'ECRH_y'}.issubset(df.columns):
         # Plotting ECRH Signal
         plot_ECRH, = ax.plot(list_ECRH_x, list_ECRH_y_aligned, label='ECRH Aligned', color='orange')
 
+del df  # removes all pandas dataframe from memory
 # creating interactive legend
 leg = ax.legend(loc='lower left', bbox_to_anchor=(-0.16, -0.15), framealpha=0.8)  # set legend on plot
 pre_lines = [plot_Itot, plot_Phi, plot_ne, plot_Radius, plot_ECRH]

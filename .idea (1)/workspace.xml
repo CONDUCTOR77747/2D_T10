@@ -4,15 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="9b7a7a93-1d67-4a7a-9303-dd1dae8a2be4" name="Changes" comment="More optimized by memory">
-      <change afterPath="$PROJECT_DIR$/.idea (1)/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea (1)/workspace.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/HIBP.iml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+    <list default="true" id="c51d0784-5fb4-4673-b9cf-b56658ceb6f2" name="Changes" comment="Checkbox &quot;Ignore Itot Spans&quot; was added">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/CreateList.py" beforeDir="false" afterPath="$PROJECT_DIR$/CreateList.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -22,7 +15,7 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="ProjectId" id="1x9cFYegHxaqUrIIvzDTdYjg6Vn" />
+  <component name="ProjectId" id="1wpDbUU8GS1Vk0mS2p1UuH72gOr" />
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
@@ -31,22 +24,32 @@
   <component name="PropertiesComponent">
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/CreateList.py" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="restartRequiresConfirmation" value="false" />
     <property name="settings.editor.selected.configurable" value="vcs.Git" />
+  </component>
+  <component name="PyConsoleOptionsProvider">
+    <option name="myPythonConsoleState">
+      <console-settings custom-start-script="import sys; print('Python %s on %s' % (sys.version, sys.platform))&#10;sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;import pandas as pd&#10;import numpy as np" module-name="HIBP" is-module-sdk="true">
+        <option name="myCustomStartScript" value="import sys; print('Python %s on %s' % (sys.version, sys.platform))&#10;sys.path.extend([WORKING_DIR_AND_PYTHON_PATHS])&#10;import pandas as pd&#10;import numpy as np" />
+        <option name="myUseModuleSdk" value="true" />
+        <option name="myModuleName" value="HIBP" />
+      </console-settings>
+    </option>
   </component>
   <component name="RunManager">
     <configuration name="CreateList" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
-      <module name="HIBP" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
       <envs>
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
-      <option name="SDK_HOME" value="C:\Users\Xiaomi Notebook Air\AppData\Local\Programs\Python\Python39\python.exe" />
+      <option name="SDK_HOME" value="C:\Users\ammos\AppData\Local\Programs\Python\Python39\python.exe" />
       <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
       <option name="IS_MODULE_SDK" value="false" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="false" />
+      <option name="ADD_SOURCE_ROOTS" value="false" />
+      <module name="" />
       <option name="SCRIPT_NAME" value="$PROJECT_DIR$/CreateList.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="false" />
@@ -60,12 +63,27 @@
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
-      <changelist id="9b7a7a93-1d67-4a7a-9303-dd1dae8a2be4" name="Changes" comment="" />
-      <created>1629770644726</created>
+      <changelist id="c51d0784-5fb4-4673-b9cf-b56658ceb6f2" name="Changes" comment="" />
+      <created>1629146708123</created>
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
-      <updated>1629770644726</updated>
+      <updated>1629146708123</updated>
     </task>
+    <task id="LOCAL-00001" summary="Testing Commits">
+      <created>1629764157956</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1629764157956</updated>
+    </task>
+    <task id="LOCAL-00002" summary="Checkbox &quot;Ignore Itot Spans&quot; was added">
+      <created>1629770261315</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1629770261315</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -78,10 +96,17 @@
         </entry>
       </map>
     </option>
-    <option name="oldMeFiltersMigrated" value="true" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="More optimized by memory" />
-    <option name="LAST_COMMIT_MESSAGE" value="More optimized by memory" />
+    <MESSAGE value="Testing Commits" />
+    <MESSAGE value="Checkbox &quot;Ignore Itot Spans&quot; was added" />
+    <option name="LAST_COMMIT_MESSAGE" value="Checkbox &quot;Ignore Itot Spans&quot; was added" />
+  </component>
+  <component name="XDebuggerManager">
+    <watches-manager>
+      <configuration name="PythonConfigurationType">
+        <watch expression="list_Itot_y" />
+      </configuration>
+    </watches-manager>
   </component>
 </project>

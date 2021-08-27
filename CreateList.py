@@ -196,15 +196,31 @@ def on_pick_legend(event):
 
 
 def create_list_file(list_scans, list_ne_means):
-
+    save_dir = 'Lists/'
+    f_itot = open(str(save_dir + data_file + "_Itot" + '.list'), 'w')
     if list_ne_means is not None:
         for i in range(len(list_scans)):
-            print("T10HIBP::Itot{relosc333, slit3, clean, noz, shot" + shot + ", from" + str(list_scans[i][0]) + "to" +
-                  str(list_scans[i][1]) + "} !" + str(list_ne_means[i]) + " #" + shot + ' E = ' + energy)
+            f_itot.write("T10HIBP::Itot{relosc333, slit3, clean, noz, shot" + shot + ", from" + str(list_scans[i][0]) +
+                         "to" +
+                         str(list_scans[i][1]) + "} !" + str(list_ne_means[i]) + " #" + shot + ' E = ' + energy + '\n')
     else:
         for i in range(len(list_scans)):
-            print("T10HIBP::Itot{relosc333, slit3, clean, noz, shot" + shot + ", from" + str(list_scans[i][0]) + "to" +
-                  str(list_scans[i][1]) + "} !" + " #" + shot + ' E = ' + energy)
+            f_itot.write("T10HIBP::Itot{relosc333, slit3, clean, noz, shot" + shot + ", from" + str(list_scans[i][0]) +
+                         "to" +
+                         str(list_scans[i][1]) + "} !" + " #" + shot + ' E = ' + energy + '\n')
+    f_phi = open(str(save_dir + data_file + "_Phi" + '.list'), 'w')
+    if list_ne_means is not None:
+        for i in range(len(list_scans)):
+            f_phi.write("T10HIBP::Phi{slit3, clean, noz, shot" + shot + ", from" + str(list_scans[i][0]) +
+                        "to" +
+                        str(list_scans[i][1]) + "} !" + str(list_ne_means[i]) + " #" + shot + ' E = ' + energy + '\n')
+    else:
+        for i in range(len(list_scans)):
+            f_phi.write("T10HIBP::Phi{slit3, clean, noz, shot" + shot + ", from" + str(list_scans[i][0]) +
+                        "to" +
+                        str(list_scans[i][1]) + "} !" + " #" + shot + ' E = ' + energy + '\n')
+    f_itot.close()
+    f_phi.close()
 
 
 # button for creating lists

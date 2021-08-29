@@ -3,8 +3,9 @@ import pandas as pd
 from matplotlib.widgets import SpanSelector, Cursor, Button, Slider, CheckButtons
 from statistics import mean
 import scipy.signal
+from datetime import datetime
 
-# required libraries: pandas, matplotlib, scipy, numpy, statistics
+# required libraries: pandas, matplotlib, scipy, numpy, statistics, datetime
 # data file columns: Itot, Phi, ne, Radius, ECRH. Data file name: T10_%shot_number%_B%_I%_zdfilter%.
 # First row must be: "Itot_x	Itot_y	Phi_x	Phi_y	ne_x	ne_y	Radius_x	Radius_y	ECRH_x	ECRH_y"
 # or if there is no ECRH: "Itot_x	Itot_y	Phi_x	Phi_y	ne_x	ne_y	Radius_x	Radius_y"
@@ -196,8 +197,14 @@ def on_pick_legend(event):
 
 
 def create_list_file(list_scans, list_ne_means):
+    time_format = '%Y-%m-%d_%H-%M-%S'
+    file_format = '.list'
     save_dir = 'Lists/'
-    f_itot = open(str(save_dir + data_file + "_Itot" + '.list'), 'w')
+    file_name = data_file[0:-4]
+    itot_file_path = '%s%s_%s_%s%s' % (save_dir, file_name, 'Itot', datetime.now().strftime(time_format), file_format)
+    phi_file_path = '%s%s_%s_%s%s' % (save_dir, file_name, 'Phi', datetime.now().strftime(time_format), file_format)
+
+    f_itot = open(itot_file_path, 'w')
     if list_ne_means is not None:
         for i in range(len(list_scans)):
             f_itot.write("T10HIBP::Itot{relosc333, slit3, clean, noz, shot" + shot + ", from" + str(list_scans[i][0]) +
@@ -208,7 +215,7 @@ def create_list_file(list_scans, list_ne_means):
             f_itot.write("T10HIBP::Itot{relosc333, slit3, clean, noz, shot" + shot + ", from" + str(list_scans[i][0]) +
                          "to" +
                          str(list_scans[i][1]) + "} !" + " #" + shot + ' E = ' + energy + '\n')
-    f_phi = open(str(save_dir + data_file + "_Phi" + '.list'), 'w')
+    f_phi = open(phi_file_path, 'w')
     if list_ne_means is not None:
         for i in range(len(list_scans)):
             f_phi.write("T10HIBP::Phi{slit3, clean, noz, shot" + shot + ", from" + str(list_scans[i][0]) +

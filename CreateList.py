@@ -2,24 +2,22 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.widgets import SpanSelector, Cursor, Button, Slider, CheckButtons
 from statistics import mean
-import scipy.signal
 from datetime import datetime
 
-# required libraries: pandas, matplotlib, scipy, numpy, statistics, datetime
+# required libraries: pandas, matplotlib, statistics, datetime
 # data file columns: Itot, Phi, ne, Radius, ECRH. Data file name: T10_%shot_number%_B%_I%_zdfilter%.
 # First row must be: "Itot_x	Itot_y	Phi_x	Phi_y	ne_x	ne_y	Radius_x	Radius_y	ECRH_x	ECRH_y"
 # or if there is no ECRH: "Itot_x	Itot_y	Phi_x	Phi_y	ne_x	ne_y	Radius_x	Radius_y"
 # or if there is no ECRH, ne: "Itot_x	Itot_y	Phi_x	Phi_y	Radius_x	Radius_y"
 data_file = "T10_69316_B24_I230_zdfilter0.5.dat"  # data file name to load
 # parameters of signal
-shot = '69316'
+shot = data_file[4:9]
 energy = '220'
 
 # reading data from data file via pandas library. (Creating pandas dataframe)
 df = pd.read_csv(data_file, delimiter="\t")
 
 # important parameters
-decimate_factor = 15  # 1-no changes in data. 2-50 - downsampling signals - better for speed and low quality.
 Itot_y_max_value = 1  # for aligning Radius and ECRH signals
 ne_flag = 0  # if ne signal exists ne_flag = 1 otherwise ne_flag = 0
 ignore_itot_diapasons_flag = 0
@@ -38,7 +36,7 @@ plot_Itot, plot_Phi, plot_ne, plot_Radius, plot_ECRH = None, None, None, None, N
 list_Itot_x, list_Itot_y, list_Phi_x, list_Phi_y, list_ne_x = [], [], [], [], []
 list_ne_y, list_Radius_x, list_Radius_y, list_ECRH_x, list_ECRH_y = [], [], [], [], []
 # creating and setting up plot window
-fig, ax = plt.subplots(figsize=(10, 6))
+fig, ax = plt.subplots(figsize=(10, 6), dpi=80)
 fig.canvas.manager.set_window_title(str('List Creator - ' + data_file))  # set plot window title
 ax.grid()  # set grid
 plt.title(data_file)  # set plot title
@@ -152,33 +150,34 @@ def intercept_intervals(span_min, span_max, itot_min, itot_max):
         return None
 
 
-# returns list of ne mean values for each Itot diapason
-def mean_value_ne(list_x, list_y, done_list):
-    if ne_flag == 1:  # check flag if ne signal was loaded from data file
-        list_ne_mean_values = []  # creating list for ne signal mean values
-        ne_coord_sensitivity = 0.1  # deviation between ne_x coordinate and itot_x coordinate. necessary because of
-        # different amount of points in itot and ne signals
-        ne_found_min_flag, ne_found_max_flag = 0, 0  # if one value is found stop searching another
-        index_x_min, index_x_max = 0, 0  # indexes of ne_x signal
+# returns list of signal mean values for each Itot diapason. properties: (signal_x, signal_y, list of selected
+# diapasons, flag if signal was loaded)
+def signal_mean_value(list_x, list_y, done_list, flag):
+    if flag == 1:  # check flag if signal was loaded from data file
+        list_mean_values = []  # creating list for signal mean values
+        coord_sensitivity = 0.1  # deviation between signal coordinate and itot_x coordinate. necessary because of
+        # different amount of points in itot and signal
+        found_min_flag, found_max_flag = 0, 0  # if one value is found stop searching another
+        index_x_min, index_x_max = 0, 0  # indexes of signal
         for scans in done_list:  # go through list with done diapasons of itot
-            for i in range(len(list_x)):  # go through ne signal list
-                # checking deviation between two coordinates - itot_x and ne_x to get indexes for ne signal
-                if abs(round(list_x[i], 2) - scans[0]) < ne_coord_sensitivity and ne_found_min_flag == 0:
+            for i in range(len(list_x)):  # go through signal list
+                # checking deviation between two coordinates - itot_x and signal to get indexes of signal
+                if abs(round(list_x[i], 2) - scans[0]) < coord_sensitivity and found_min_flag == 0:
                     index_x_min = i  # getting index
-                    ne_found_min_flag = 1  # if index found set found flag - 1
+                    found_min_flag = 1  # if index found set found flag - 1
                     # print('min', index_x_min, x_min, round(list_x[i], 2), abs(round(list_x[i], 2)-x_min))
-                if abs(round(list_x[i], 2) - scans[1]) < ne_coord_sensitivity and ne_found_max_flag == 0:
+                if abs(round(list_x[i], 2) - scans[1]) < coord_sensitivity and found_max_flag == 0:
                     index_x_max = i
-                    ne_found_max_flag = 1
+                    found_max_flag = 1
                     # print('max', index_x_max, x_max, round(list_x[i], 2), abs(round(list_x[i], 2)-x_max))
-                if ne_found_min_flag == 1 and ne_found_max_flag == 1:
-                    # using indexes to get y values of ne signal to calculate mean value
-                    list_ne_mean_values.append(round(mean(list_y[index_x_min:index_x_max + 1]), 3))
+                if found_min_flag == 1 and found_max_flag == 1:
+                    # using indexes to get y values of signal to calculate mean value
+                    list_mean_values.append(round(mean(list_y[index_x_min:index_x_max + 1]), 3))
                     break  # exit child loop and go to the next itot diapason
-            ne_found_min_flag, ne_found_max_flag = 0, 0  # set flags to 0
-        if len(done_list) == len(list_ne_mean_values):  # if amount of itot diapasons is equal to amount of ne means
-            return list_ne_mean_values  # returns list of ne mean values for each Itot diapason
-    else:  # if ne signal wasn't loaded return none
+            found_min_flag, found_max_flag = 0, 0  # set flags to 0
+        if len(done_list) == len(list_mean_values):  # if amount of itot diapasons is equal to amount of signal means
+            return list_mean_values  # returns list of signal mean values for each Itot diapason
+    else:  # if signal wasn't loaded return none
         return None
 
 
@@ -248,10 +247,11 @@ def func_btn_create_lists_on_clicked(_):
             for span in list_axvspans:
                 done_scans.append((round(span.get_xy()[0][0], 2), round(span.get_xy()[-2][0], 2)))
         done_scans.sort()  # sorting diapasons
-        print(done_scans)  # printing diapasons
-        mean_ne = mean_value_ne(list_ne_x, list_ne_y, done_scans)  # getting list of ne mean values of itot intervals
-        if mean_ne is not None:  # if mean values is correct
-            print(mean_ne)
+        # print(done_scans)  # printing diapasons
+        mean_ne = signal_mean_value(list_ne_x, list_ne_y, done_scans, ne_flag)  # getting list of ne mean values of itot
+        # intervals
+        # if mean_ne is not None:  # if mean values is correct
+        # print(mean_ne)
         create_list_file(done_scans, mean_ne)
         done_scans.clear()  # clearing diapasons list after saving
 
@@ -272,8 +272,6 @@ def ignore_itot_diapasons(_):
 if {'Itot_x', 'Itot_y'}.issubset(df.columns):  # does Itot signal exist in data file
     list_Itot_y = df['Itot_y'].tolist()  # loading Itot signals to list
     list_Itot_x = df['Itot_x'].tolist()
-    list_Itot_x = scipy.signal.decimate(list_Itot_x, decimate_factor)
-    list_Itot_y = scipy.signal.decimate(list_Itot_y, decimate_factor)
     Itot_y_max_value = max(list_Itot_y)  # for aligning Radius and ECRH signals
     # Plotting Itot Signal
     plot_Itot, = ax.plot(list_Itot_x, list_Itot_y, label='Itot (kA)', color='royalblue')
@@ -329,8 +327,6 @@ if {'Itot_x', 'Itot_y'}.issubset(df.columns):  # does Itot signal exist in data 
 if {'Phi_x', 'Phi_y'}.issubset(df.columns):
     list_Phi_y = df['Phi_y'].tolist()  # loading Phi signals to list
     list_Phi_x = df['Phi_x'].tolist()
-    list_Phi_x = scipy.signal.decimate(list_Phi_x, decimate_factor)
-    list_Phi_y = scipy.signal.decimate(list_Phi_y, decimate_factor)
     # Plotting Phi Signal
     plot_Phi, = ax.plot(list_Phi_x, list_Phi_y, label='Phi (kV)', color='magenta')
 
@@ -351,8 +347,6 @@ if {'ne_x', 'ne_y'}.issubset(df.columns):
 if {'Radius_x', 'Radius_y'}.issubset(df.columns):
     list_Radius_y = df['Radius_y'].tolist()  # loading Radius signals to list
     list_Radius_x = df['Radius_x'].tolist()
-    list_Radius_x = scipy.signal.decimate(list_Radius_x, decimate_factor)
-    list_Radius_y = scipy.signal.decimate(list_Radius_y, decimate_factor)
     # aligning radius
     Radius_y_min_value = min(list_Radius_y)  # for aligning Radius
     Radius_y_max_value = max(list_Radius_y)

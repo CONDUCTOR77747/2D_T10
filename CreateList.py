@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
-from matplotlib.widgets import SpanSelector, Cursor, Button, Slider, CheckButtons
+from matplotlib.widgets import SpanSelector, Cursor, Button, Slider, CheckButtons, TextBox
+import win32clipboard
 from statistics import mean
 from datetime import datetime
 
@@ -8,11 +9,11 @@ from datetime import datetime
 # data file columns: Itot, Phi, ne, Radius, ECRH. Data file name: T10_%shot_number%_B%_I%_zdfilter%.
 # First row must be: "Itot_x	Itot_y	Phi_x	Phi_y	ne_x	ne_y	Radius_x	Radius_y	ECRH_x	ECRH_y"
 # or if there is no ECRH: "Itot_x	Itot_y	Phi_x	Phi_y	ne_x	ne_y	Radius_x	Radius_y"
-# or if there is no ECRH, ne: "Itot_x	Itot_y	Phi_x	Phi_y	Radius_x	Radius_y"
-data_file = "T10_69316_B24_I230_zdfilter0.5.dat"  # data file name to load
+# or if there is no ECRH and ne: "Itot_x	Itot_y	Phi_x	Phi_y	Radius_x	Radius_y"
+data_file = "T10_70942_B17_I200.dat"  # data file name to load
 # parameters of signal
 shot = data_file[4:9]
-energy = '220'
+energy = '120'
 
 # reading data from data file via pandas library. (Creating pandas dataframe)
 df = pd.read_csv(data_file, delimiter="\t")
@@ -67,7 +68,7 @@ def get_time_diapasons_from_itot(data_list_x, data_list_y, threshold, min_time_d
                 diapason_indexes.append(i)
             pass
     for i in range(0, len(diapason_indexes) - 1, 2):
-        if data_list_x[diapason_indexes[i + 1]] - data_list_x[diapason_indexes[i]] > min_time_diapason:
+        if data_list_x[diapason_indexes[i + 1]] - data_list_x[diapason_indexes[i]] >= min_time_diapason:
             time_diapasons.append(round(data_list_x[diapason_indexes[i]], 2))
             time_diapasons.append(round(data_list_x[diapason_indexes[i + 1]], 2))
     return time_diapasons
@@ -134,6 +135,15 @@ def btn_delete_all_scans_on_clicked(_):
         plt_scan_counter_update()  # display changes on the plot
         # print('Delete all scans')  # print if the button delete all scans was pressed
 
+def func_textbox_submit(text):
+    win32clipboard.OpenClipboard()
+    data = win32clipboard.GetClipboardData()
+    win32clipboard.CloseClipboard()
+    data = data[1:-1]
+    text_box.set_val(data)
+    with open(data, 'r') as file:
+        content = file.read()
+    print(list_axvspans_Itot_spans)
 
 # checking interception of itot spans "( )" and created spans "| |".
 # "|"-span_min, "|"-span_max, "("-itot_min, ")"-itot_max - explanation via brackets
@@ -194,6 +204,8 @@ def on_pick_legend(event):
     legend.set_alpha(1.0 if visible else 0.2)
     fig.canvas.draw()
 
+#  creating list file function
+
 
 def create_list_file(list_scans, list_ne_means):
     time_format = '%Y-%m-%d_%H-%M-%S'
@@ -206,25 +218,22 @@ def create_list_file(list_scans, list_ne_means):
     f_itot = open(itot_file_path, 'w')
     if list_ne_means is not None:
         for i in range(len(list_scans)):
-            f_itot.write("T10HIBP::Itot{relosc333, slit3, clean, noz, shot" + shot + ", from" + str(list_scans[i][0]) +
-                         "to" +
-                         str(list_scans[i][1]) + "} !" + str(list_ne_means[i]) + " #" + shot + ' E = ' + energy + '\n')
+            f_itot.write("T10HIBP::Itot{relosc333, slit3, clean, noz, shot" + shot + ", from" + "{:.2f}".format(list_scans[i][0]) + "to" +
+                         "{:.2f}".format(list_scans[i][1]) + "} !" + "{:.3f}".format(list_ne_means[i]) + " #" + shot + ' E = ' + energy + '\n')
     else:
         for i in range(len(list_scans)):
-            f_itot.write("T10HIBP::Itot{relosc333, slit3, clean, noz, shot" + shot + ", from" + str(list_scans[i][0]) +
-                         "to" +
-                         str(list_scans[i][1]) + "} !" + " #" + shot + ' E = ' + energy + '\n')
+            f_itot.write("T10HIBP::Itot{relosc333, slit3, clean, noz, shot" + shot + ", from" + "{:.2f}".format(list_scans[i][0]) + "to" +
+                         str("{:.2f}".format(str(list_scans[i][1]))) + "} !" + " #" + shot + ' E = ' + energy + '\n')
+
     f_phi = open(phi_file_path, 'w')
     if list_ne_means is not None:
         for i in range(len(list_scans)):
-            f_phi.write("T10HIBP::Phi{slit3, clean, noz, shot" + shot + ", from" + str(list_scans[i][0]) +
-                        "to" +
-                        str(list_scans[i][1]) + "} !" + str(list_ne_means[i]) + " #" + shot + ' E = ' + energy + '\n')
+            f_phi.write("T10HIBP::Phi{slit3, clean, noz, shot" + shot + ", from" + "{:.2f}".format(list_scans[i][0]) + "to" +
+                        "{:.2f}".format(list_scans[i][1]) + "} !" + "{:.3f}".format(list_ne_means[i]) + " #" + shot + ' E = ' + energy + '\n')
     else:
         for i in range(len(list_scans)):
-            f_phi.write("T10HIBP::Phi{slit3, clean, noz, shot" + shot + ", from" + str(list_scans[i][0]) +
-                        "to" +
-                        str(list_scans[i][1]) + "} !" + " #" + shot + ' E = ' + energy + '\n')
+            f_phi.write("T10HIBP::Phi{slit3, clean, noz, shot" + shot + ", from" + "{:.2f}".format(list_scans[i][0]) + "to" +
+                        "{:.2f}".format(list_scans[i][1]) + "} !" + " #" + shot + ' E = ' + energy + '\n')
     f_itot.close()
     f_phi.close()
 
@@ -278,13 +287,13 @@ if {'Itot_x', 'Itot_y'}.issubset(df.columns):  # does Itot signal exist in data 
     # Make a horizontal slider to control the min time diapason.
     mtd_slider_pos = plt.axes([0.65, 0.016, 0.25, 0.03], facecolor='lightgoldenrodyellow')  # min time diapason position
     # creating slider for min time diapason
-    min_time_diapason_slider = Slider(ax=mtd_slider_pos, label='Minimal \nTime \nDiapason', valmin=0, valmax=2,
-                                      valinit=1, valstep=0.05)
+    min_time_diapason_slider = Slider(ax=mtd_slider_pos, label='Minimal \nTime \nDiapason', valmin=0, valmax=3,
+                                      valinit=2.56, valstep=0.01)
 
     # Make a vertical slider to control the threshold. (Itot signal)
     # min time diapason position
     threshold_slider_pos = plt.axes([0.94, 0.2, 0.02, 0.4], facecolor='lightgoldenrodyellow')
-    # creating slider for min time diapason
+    # creating horizontal slider for min time diapason
     threshold_slider = Slider(ax=threshold_slider_pos, label='Threshold \n(Itot)', valmin=0, valmax=0.2,
                               valinit=0.2, valstep=0.01, orientation='vertical')
     list_axvspans_Itot_spans = []  # list for memorizing all Itot spans
@@ -322,6 +331,12 @@ if {'Itot_x', 'Itot_y'}.issubset(df.columns):  # does Itot signal exist in data 
     axCheckButton = plt.axes([0.01, 0.35, 0.08, 0.13])
     checkbox = CheckButtons(axCheckButton, ['Ignore\nItot\nDiapasons'], [False])
     checkbox.on_clicked(ignore_itot_diapasons)
+
+# Loading saved lists
+initial_text = "Press Enter to paste list path and load data"
+axbox = plt.axes([0.3, 0.94, 0.5, 0.05]) # position of textbox x,y,w,h
+text_box = TextBox(axbox, 'Load List:', initial=initial_text)  #  creating textbox
+text_box.on_submit(func_textbox_submit) # If Enter pressed (submitting by default)
 
 # Phi - loading and plotting Phi signal
 if {'Phi_x', 'Phi_y'}.issubset(df.columns):

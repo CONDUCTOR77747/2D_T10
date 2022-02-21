@@ -1,19 +1,50 @@
 import matplotlib.pyplot as plt
 import pandas as pd
-from matplotlib.widgets import SpanSelector, Cursor, Button, Slider, CheckButtons, TextBox
 import win32clipboard
+import os.path
+from os import path
 from statistics import mean
 from datetime import datetime
+import re
+import sys
+from matplotlib.widgets import SpanSelector, Cursor, Button, Slider, CheckButtons, TextBox
+
+# MonkeyPatching matplotlib/widgets/TextBox/set_val "set_val without submitting"
+def set_val(self, val):
+    newval = str(val)
+    if self.text == newval:
+        return
+    self.text_disp.set_text(newval)
+    self._rendercursor()
+    if self.eventson:
+        self._observers.process('change', self.text)
+        # self._observers.process('submit', self.text)
+TextBox.set_val = set_val
 
 # required libraries: pandas, matplotlib, statistics, datetime
 # data file columns: Itot, Phi, ne, Radius, ECRH. Data file name: T10_%shot_number%_B%_I%_zdfilter%.
 # First row must be: "Itot_x	Itot_y	Phi_x	Phi_y	ne_x	ne_y	Radius_x	Radius_y	ECRH_x	ECRH_y"
 # or if there is no ECRH: "Itot_x	Itot_y	Phi_x	Phi_y	ne_x	ne_y	Radius_x	Radius_y"
 # or if there is no ECRH and ne: "Itot_x	Itot_y	Phi_x	Phi_y	Radius_x	Radius_y"
-data_file = "T10_70942_B17_I200.dat"  # data file name to load
-# parameters of signal
-shot = data_file[4:9]
-energy = '120'
+
+data_file = None
+
+if len(sys.argv) > 2:
+    if sys.argv[1][0] == sys.argv[1][-1] == '\"':
+        sys.argv[1] = sys.argv[1][1:-1]
+    if path.exists(sys.argv[1]):
+        data_file = sys.argv[1]  # data file name to load
+        # parameters of signal
+        shot = data_file[4:9]
+        energy = sys.argv[2]
+    else:
+        print("Incorrect Path: " + data_file)
+        sys.exit()
+else:
+    print("Need 2 arguments: 1-data file path; 2-enegry.")
+    sys.exit()
+
+print(sys.argv[1], sys.argv[2])
 
 # reading data from data file via pandas library. (Creating pandas dataframe)
 df = pd.read_csv(data_file, delimiter="\t")
@@ -135,15 +166,30 @@ def btn_delete_all_scans_on_clicked(_):
         plt_scan_counter_update()  # display changes on the plot
         # print('Delete all scans')  # print if the button delete all scans was pressed
 
+# opening list file and parsing data
+def func_load_list_from_file(data):
+    with open(data, 'r') as file:
+        content = file.read()
+    pattern = r"from(.+)to(.+)}"
+    list_file_load = re.findall(pattern, content)
+    for elem in list_file_load:
+        span_onselect(float(elem[0]), float(elem[1]))
+
 def func_textbox_submit(text):
     win32clipboard.OpenClipboard()
     data = win32clipboard.GetClipboardData()
     win32clipboard.CloseClipboard()
-    data = data[1:-1]
-    text_box.set_val(data)
-    with open(data, 'r') as file:
-        content = file.read()
-    print(list_axvspans_Itot_spans)
+    if data[0] == data[-1] == '\"':
+        print(data[0], data[-1])
+        data = data[1:-1]
+    if path.exists(data):
+        if data[-5:] ==  ".list":
+            text_box.set_val(data) # MonkeyPatched set_val
+            func_load_list_from_file(data)
+        else:
+            text_box.set_val("Incorrect Data Fromat (.list needed): " + data)
+    else:
+        text_box.set_val("Incorrect Path: " + data)
 
 # checking interception of itot spans "( )" and created spans "| |".
 # "|"-span_min, "|"-span_max, "("-itot_min, ")"-itot_max - explanation via brackets
@@ -208,14 +254,24 @@ def on_pick_legend(event):
 
 
 def create_list_file(list_scans, list_ne_means):
-    time_format = '%Y-%m-%d_%H-%M-%S'
+    # creating output filename
+    time_format = '%d-%m-%Y %H:%M:%S'
     file_format = '.list'
     save_dir = 'Lists/'
     file_name = data_file[0:-4]
-    itot_file_path = '%s%s_%s_%s%s' % (save_dir, file_name, 'Itot', datetime.now().strftime(time_format), file_format)
-    phi_file_path = '%s%s_%s_%s%s' % (save_dir, file_name, 'Phi', datetime.now().strftime(time_format), file_format)
 
-    f_itot = open(itot_file_path, 'w')
+    #  with timestamp
+    # itot_file_path = '%s%s_%s_%s%s' % (save_dir, file_name, 'Itot', datetime.now().strftime(time_format), file_format)
+    # phi_file_path = '%s%s_%s_%s%s' % (save_dir, file_name, 'Phi', datetime.now().strftime(time_format), file_format)
+
+    #  without timestamp
+    itot_file_path = '%s%s_%s%s' % (save_dir, file_name, 'Itot', file_format)
+    phi_file_path = '%s%s_%s%s' % (save_dir, file_name, 'Phi', file_format)
+
+    # creating content of output file
+
+    f_itot = open(itot_file_path, 'a')
+    f_itot.write("!"+datetime.now().strftime(time_format)+'\n')
     if list_ne_means is not None:
         for i in range(len(list_scans)):
             f_itot.write("T10HIBP::Itot{relosc333, slit3, clean, noz, shot" + shot + ", from" + "{:.2f}".format(list_scans[i][0]) + "to" +
@@ -225,7 +281,8 @@ def create_list_file(list_scans, list_ne_means):
             f_itot.write("T10HIBP::Itot{relosc333, slit3, clean, noz, shot" + shot + ", from" + "{:.2f}".format(list_scans[i][0]) + "to" +
                          str("{:.2f}".format(str(list_scans[i][1]))) + "} !" + " #" + shot + ' E = ' + energy + '\n')
 
-    f_phi = open(phi_file_path, 'w')
+    f_phi = open(phi_file_path, 'a')
+    f_phi.write("!" + datetime.now().strftime(time_format) + '\n')
     if list_ne_means is not None:
         for i in range(len(list_scans)):
             f_phi.write("T10HIBP::Phi{slit3, clean, noz, shot" + shot + ", from" + "{:.2f}".format(list_scans[i][0]) + "to" +
@@ -307,7 +364,7 @@ if {'Itot_x', 'Itot_y'}.issubset(df.columns):  # does Itot signal exist in data 
 
     # span selector parameters
     span_selector = SpanSelector(ax, span_onselect, 'horizontal', useblit=True,
-                                 rectprops=dict(alpha=0.3, facecolor='tomato'))
+                                 props=dict(alpha=0.3, facecolor='tomato'))
 
     # cursor parameters
     cursor = Cursor(ax, horizOn=True, vertOn=True, color='grey', linewidth=1, alpha=0.5)
@@ -333,7 +390,7 @@ if {'Itot_x', 'Itot_y'}.issubset(df.columns):  # does Itot signal exist in data 
     checkbox.on_clicked(ignore_itot_diapasons)
 
 # Loading saved lists
-initial_text = "Press Enter to paste list path and load data"
+initial_text = "Press Here to Paste List Path and Load Data"
 axbox = plt.axes([0.3, 0.94, 0.5, 0.05]) # position of textbox x,y,w,h
 text_box = TextBox(axbox, 'Load List:', initial=initial_text)  #  creating textbox
 text_box.on_submit(func_textbox_submit) # If Enter pressed (submitting by default)

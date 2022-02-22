@@ -9,7 +9,9 @@ import re
 import sys
 from matplotlib.widgets import SpanSelector, Cursor, Button, Slider, CheckButtons, TextBox
 
-# MonkeyPatching matplotlib/widgets/TextBox/set_val "set_val without submitting"
+""" MonkeyPatching matplotlib/widgets/TextBox/set_val "set_val without submitting"  """
+
+
 def set_val(self, val):
     newval = str(val)
     if self.text == newval:
@@ -18,17 +20,25 @@ def set_val(self, val):
     self._rendercursor()
     if self.eventson:
         self._observers.process('change', self.text)
-        # self._observers.process('submit', self.text)
+        # self._observers.process('submit', self.text) <- without this row
+
+
 TextBox.set_val = set_val
 
-# required libraries: pandas, matplotlib, statistics, datetime
-# data file columns: Itot, Phi, ne, Radius, ECRH. Data file name: T10_%shot_number%_B%_I%_zdfilter%.
-# First row must be: "Itot_x	Itot_y	Phi_x	Phi_y	ne_x	ne_y	Radius_x	Radius_y	ECRH_x	ECRH_y"
-# or if there is no ECRH: "Itot_x	Itot_y	Phi_x	Phi_y	ne_x	ne_y	Radius_x	Radius_y"
-# or if there is no ECRH and ne: "Itot_x	Itot_y	Phi_x	Phi_y	Radius_x	Radius_y"
 
-data_file = None
-shot = None
+"""
+required libraries: pandas, matplotlib, statistics, datetime
+data file columns: Itot, Phi, ne, Radius, ECRH. Data file name: T10_%shot_number%_B%_I%_zdfilter%.
+First row must be: "Itot_x	Itot_y	Phi_x	Phi_y	ne_x	ne_y	Radius_x	Radius_y	ECRH_x	ECRH_y"
+or if there is no ECRH: "Itot_x	Itot_y	Phi_x	Phi_y	ne_x	ne_y	Radius_x	Radius_y"
+or if there is no ECRH and ne: "Itot_x	Itot_y	Phi_x	Phi_y	Radius_x	Radius_y"
+"""
+
+
+data_file = None  # path and name of data file
+shot = None  # shot number
+
+""" using sys.argv for input (command line input): 1st arg - path to data file; 2nd arg - energy """
 
 if len(sys.argv) > 2:
     if sys.argv[1][0] == sys.argv[1][-1] == '\"':
@@ -37,7 +47,6 @@ if len(sys.argv) > 2:
         data_file = sys.argv[1]  # data file name to load
         # parameters of signal
         shot = re.findall(r"T10_(.+)_B", data_file)[0]
-        #shot = shot_parse[0]
         energy = sys.argv[2]
     else:
         print("Incorrect Path: ", sys.argv[1])
@@ -46,19 +55,21 @@ else:
     print("Need 2 arguments: 1-data file path; 2-enegry.")
     sys.exit()
 
-# reading data from data file via pandas library. (Creating pandas dataframe)
+""" reading data from data file via pandas library. (Creating pandas dataframe) """
 df = pd.read_csv(data_file, delimiter="\t")
 
-# important parameters
 Itot_y_max_value = 1  # for aligning Radius and ECRH signals
 ne_flag = 0  # if ne signal exists ne_flag = 1 otherwise ne_flag = 0
 ignore_itot_diapasons_flag = 0
 accuracy = 1000  # accuracy for spline radius derivative recommend value: 500 - 1000
 scans_limit = 100
-# global variables counter, scan_counter. In functions: plt_scan_counter_update, span_onselect, btn_delete_last_scan
-# counts amount of scans and display it
+
+""" global variables counter, scan_counter. In functions: plt_scan_counter_update, span_onselect, btn_delete_last_scan
+counts amount of scans and display it
+"""
 counter = 0  # initial value of scan counter
 scan_counter = 'Scans: ' + str(counter)  # initial text of scan counter
+
 list_axvspans = []  # list for saving (memorizing) spans. It helps to remove last scan by button and to create lists.
 # scan counter position (Text "Scan: x")
 s_c_pos_x = 0.01
@@ -75,10 +86,14 @@ plt.title(data_file)  # set plot title
 plt.xlabel("t (ms)")  # set x axis label
 
 
-# Functions:
+"""
+Functions:
 
-# filters Itot and get time diapasons with signal
-# function goes through values of Itot signal. If its lower then threshold - pass, otherwise get time diapasons
+filters Itot and get time diapasons with signal
+function goes through values of Itot signal. If its lower then threshold - pass, otherwise get time diapasons
+"""
+
+
 def get_time_diapasons_from_itot(data_list_x, data_list_y, threshold, min_time_diapason):
     time_diapasons = []  # list with itot time diapasons
     diapason_indexes = []  # list with indexes of itot_x for accessing itot_y
@@ -105,7 +120,9 @@ def get_time_diapasons_from_itot(data_list_x, data_list_y, threshold, min_time_d
     return time_diapasons
 
 
-#  function applying changes (Sliders)
+""" function applying changes (Sliders) """
+
+
 def func_sliders_update(_):
     if len(list_axvspans_Itot_spans) > 0:
         for ind, val in enumerate(list_axvspans_Itot_spans):
@@ -121,15 +138,22 @@ def func_sliders_update(_):
     fig.canvas.draw_idle()  # redraw plot
 
 
-# scan counter updater
+""" scan counter updater """
+
+
 def plt_scan_counter_update():
     text_scan_counter.set_position((s_c_pos_x, s_c_pos_y))  # set position of scan counter
     text_scan_counter.set_text(str(scan_counter))  # set updated text scan counter
     plt.draw()  # draw updated counter
 
 
-# span selector
-# span selector event
+"""
+Span Selector:
+
+span selector event
+"""
+
+
 def span_onselect(xmin, xmax):
     global counter, scan_counter
     if counter < scans_limit:
@@ -142,7 +166,9 @@ def span_onselect(xmin, xmax):
     return xmin, xmax
 
 
-# button for deleting last scan
+""" button for deleting last scan """
+
+
 def btn_delete_last_scan_on_clicked(_):
     global counter, scan_counter  # using global variables
     if counter > 0:  # if amount of scans more than 0
@@ -154,7 +180,9 @@ def btn_delete_last_scan_on_clicked(_):
         # print('Delete last scan')  # print if button delete last scan was pressed
 
 
-# button for deleting all scans
+""" button for deleting all scans """
+
+
 def btn_delete_all_scans_on_clicked(_):
     global counter, scan_counter  # global variables for counter
     if counter > 0:
@@ -166,7 +194,10 @@ def btn_delete_all_scans_on_clicked(_):
         plt_scan_counter_update()  # display changes on the plot
         # print('Delete all scans')  # print if the button delete all scans was pressed
 
-# opening list file and parsing data
+
+""" opening list file and parsing data """
+
+
 def func_load_list_from_file(data):
     with open(data, 'r') as file:
         content = file.read()
@@ -175,7 +206,11 @@ def func_load_list_from_file(data):
     for elem in list_file_load:
         span_onselect(float(elem[0]), float(elem[1]))
 
-def func_textbox_submit(text):
+
+""" list data file load clipboard and submitting """
+
+
+def func_textbox_submit(__):
     win32clipboard.OpenClipboard()
     try:
         data = win32clipboard.GetClipboardData()
@@ -186,16 +221,19 @@ def func_textbox_submit(text):
         if data[0] == data[-1] == '\"':
             data = data[1:-1]
         if path.exists(data):
-            if data[-5:] ==  ".list":
-                text_box.set_val(data) # MonkeyPatched set_val
+            if data[-5:] == ".list":
+                text_box.set_val(data)  # MonkeyPatched set_val
                 func_load_list_from_file(str(data))
             else:
                 text_box.set_val("Incorrect Data Fromat (.list needed): " + data)
         else:
             text_box.set_val("Incorrect Path: " + data)
 
-# checking interception of itot spans "( )" and created spans "| |".
-# "|"-span_min, "|"-span_max, "("-itot_min, ")"-itot_max - explanation via brackets
+
+""" checking interception of itot spans "( )" and created spans "| |".
+"|"-span_min, "|"-span_max, "("-itot_min, ")"-itot_max - explanation via brackets """
+
+
 def intercept_intervals(span_min, span_max, itot_min, itot_max):
     if span_min <= itot_min and itot_max <= span_max:  # |()| (or spans are equal "|==( and )==|")
         return itot_min, itot_max  # ()
@@ -209,8 +247,10 @@ def intercept_intervals(span_min, span_max, itot_min, itot_max):
         return None
 
 
-# returns list of signal mean values for each Itot diapason. properties: (signal_x, signal_y, list of selected
-# diapasons, flag if signal was loaded)
+""" returns list of signal mean values for each Itot diapason. properties: (signal_x, signal_y, list of selected
+diapasons, flag if signal was loaded) """
+
+
 def signal_mean_value(list_x, list_y, done_list, flag):
     if flag == 1:  # check flag if signal was loaded from data file
         list_mean_values = []  # creating list for signal mean values
@@ -240,7 +280,9 @@ def signal_mean_value(list_x, list_y, done_list, flag):
         return None
 
 
-# legend disable plots function
+""" legend disable plots function """
+
+
 def on_pick_legend(event):
     # On the pick event, find the original line corresponding to the legend
     # proxy line, and toggle its visibility.
@@ -248,12 +290,12 @@ def on_pick_legend(event):
     origline1 = lined[legend]
     visible = not origline1.get_visible()
     origline1.set_visible(visible)
-    # Change the alpha on the line in the legend so we can see what lines
-    # have been toggled.
+    # Change the alpha on the line in the legend so we can see what lines have been toggled.
     legend.set_alpha(1.0 if visible else 0.2)
     fig.canvas.draw()
 
-#  creating list file function
+
+""" creating list file function """
 
 
 def create_list_file(list_scans, list_ne_means):
@@ -298,7 +340,9 @@ def create_list_file(list_scans, list_ne_means):
     f_phi.close()
 
 
-# button for creating lists
+""" button for creating lists """
+
+
 def func_btn_create_lists_on_clicked(_):
     done_scans = []  # list for clean scans [(t1,t2),(*,*),...] diapasons of Itot
     if counter > 0:  # if counter more than 0
@@ -325,6 +369,9 @@ def func_btn_create_lists_on_clicked(_):
         done_scans.clear()  # clearing diapasons list after saving
 
 
+""" display and ignore yellow itot diapasons """
+
+
 def ignore_itot_diapasons(_):
     global ignore_itot_diapasons_flag
     if ignore_itot_diapasons_flag == 0:
@@ -337,7 +384,9 @@ def ignore_itot_diapasons(_):
         func_sliders_update(threshold_slider.val)
 
 
-# Itot - loading and analyzing Itot signal
+""" Itot - loading and analyzing Itot signal """
+
+
 if {'Itot_x', 'Itot_y'}.issubset(df.columns):  # does Itot signal exist in data file
     list_Itot_y = df['Itot_y'].tolist()  # loading Itot signals to list
     list_Itot_x = df['Itot_x'].tolist()
@@ -392,11 +441,14 @@ if {'Itot_x', 'Itot_y'}.issubset(df.columns):  # does Itot signal exist in data 
     checkbox = CheckButtons(axCheckButton, ['Ignore\nItot\nDiapasons'], [False])
     checkbox.on_clicked(ignore_itot_diapasons)
 
-# Loading saved lists
+
+""" Loading saved lists """
+
+
 initial_text = "Press Here to Paste List Path and Load Data"
-axbox = plt.axes([0.3, 0.94, 0.5, 0.05]) # position of textbox x,y,w,h
-text_box = TextBox(axbox, 'Load List:', initial=initial_text)  #  creating textbox
-text_box.on_submit(func_textbox_submit) # If Enter pressed (submitting by default)
+axbox = plt.axes([0.3, 0.94, 0.5, 0.05])  # position of textbox x,y,w,h
+text_box = TextBox(axbox, 'Load List:', initial=initial_text)  # creating textbox
+text_box.on_submit(func_textbox_submit)  # If Enter pressed (submitting by default)
 
 # Phi - loading and plotting Phi signal
 if {'Phi_x', 'Phi_y'}.issubset(df.columns):
@@ -405,8 +457,11 @@ if {'Phi_x', 'Phi_y'}.issubset(df.columns):
     # Plotting Phi Signal
     plot_Phi, = ax.plot(list_Phi_x, list_Phi_y, label='Phi (kV)', color='magenta')
 
-# ne - loading, cleaning and plotting ne signal. Cleaning because of different dimension of ne signal (about 11998
-# points) in comparison with Itot, Phi, Radius signals (about 1 million points)
+
+""" ne - loading, cleaning and plotting ne signal. Cleaning because of different dimension of ne signal (about 11998
+points) in comparison with Itot, Phi, Radius signals (about 1 million points)  """
+
+
 if {'ne_x', 'ne_y'}.issubset(df.columns):
     ne_flag = 1
     list_ne_y_dirty = df['ne_y'].tolist()  # loading ne signals to list
@@ -418,7 +473,10 @@ if {'ne_x', 'ne_y'}.issubset(df.columns):
     # Plotting ne Signal
     plot_ne, = ax.plot(list_ne_x, list_ne_y, label='ne (10^-19 m^-3)', color='red')
 
-# Radius - loading, set align and scale of Radius signal.
+
+""" Radius - loading, set align and scale of Radius signal """
+
+
 if {'Radius_x', 'Radius_y'}.issubset(df.columns):
     list_Radius_y = df['Radius_y'].tolist()  # loading Radius signals to list
     list_Radius_x = df['Radius_x'].tolist()
@@ -430,7 +488,10 @@ if {'Radius_x', 'Radius_y'}.issubset(df.columns):
     # Plotting Aligned Radius Signal
     plot_Radius, = ax.plot(list_Radius_x, list_Radius_y_aligned, label='Radius Aligned', color='green')
 
-# loading ECRH signal and amplifying it
+
+""" loading ECRH signal and amplifying it """
+
+
 if {'ECRH_x', 'ECRH_y'}.issubset(df.columns):
     list_ECRH_y_dirty = df['ECRH_y'].tolist()
     list_ECRH_x_dirty = df['ECRH_x'].tolist()
@@ -450,7 +511,11 @@ if {'ECRH_x', 'ECRH_y'}.issubset(df.columns):
         plot_ECRH, = ax.plot(list_ECRH_x, list_ECRH_y_aligned, label='ECRH Aligned', color='orange')
 
 del df  # removes all pandas dataframe from memory
-# creating interactive legend
+
+
+""" creating interactive legend """
+
+
 leg = ax.legend(loc='lower left', bbox_to_anchor=(-0.16, -0.15), framealpha=0.8)  # set legend on plot
 pre_lines = [plot_Itot, plot_Phi, plot_ne, plot_Radius, plot_ECRH]
 lines = list(filter(None, pre_lines))  # cleaning the list from Nones if some plots haven't been plotted

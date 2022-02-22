@@ -27,8 +27,8 @@ TextBox.set_val = set_val
 
 
 """
-required libraries: pandas, matplotlib, statistics, datetime
-data file columns: Itot, Phi, ne, Radius, ECRH. Data file name: T10_%shot_number%_B%_I%_zdfilter%.
+required libraries: pandas, matplotlib, statistics, datetime, re, sys, win32clipboard, os.path
+data file columns: Itot, Phi, ne, Radius, ECRH. Data file name: T10_%shot_number%_B%_I%.
 First row must be: "Itot_x	Itot_y	Phi_x	Phi_y	ne_x	ne_y	Radius_x	Radius_y	ECRH_x	ECRH_y"
 or if there is no ECRH: "Itot_x	Itot_y	Phi_x	Phi_y	ne_x	ne_y	Radius_x	Radius_y"
 or if there is no ECRH and ne: "Itot_x	Itot_y	Phi_x	Phi_y	Radius_x	Radius_y"
@@ -46,7 +46,7 @@ if len(sys.argv) > 2:
     if path.exists(sys.argv[1]):
         data_file = sys.argv[1]  # data file name to load
         # parameters of signal
-        shot = re.findall(r"T10_(.+)_B", data_file)[0]
+        shot = re.findall(r"T\d+_(.+)_B", data_file)[0]
         energy = sys.argv[2]
     else:
         print("Incorrect Path: ", sys.argv[1])
@@ -445,7 +445,7 @@ if {'Itot_x', 'Itot_y'}.issubset(df.columns):  # does Itot signal exist in data 
 """ Loading saved lists """
 
 
-initial_text = "Press Here to Paste List Path and Load Data"
+initial_text = "Press Here to Paste List Path from Clipboard and Load Data"
 axbox = plt.axes([0.3, 0.94, 0.5, 0.05])  # position of textbox x,y,w,h
 text_box = TextBox(axbox, 'Load List:', initial=initial_text)  # creating textbox
 text_box.on_submit(func_textbox_submit)  # If Enter pressed (submitting by default)

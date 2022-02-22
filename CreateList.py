@@ -180,7 +180,6 @@ def func_textbox_submit(text):
     data = win32clipboard.GetClipboardData()
     win32clipboard.CloseClipboard()
     if data[0] == data[-1] == '\"':
-        print(data[0], data[-1])
         data = data[1:-1]
     if path.exists(data):
         if data[-5:] ==  ".list":

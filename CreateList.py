@@ -40,7 +40,7 @@ if len(sys.argv) > 2:
         #shot = shot_parse[0]
         energy = sys.argv[2]
     else:
-        print("Incorrect Path: " + data_file)
+        print("Incorrect Path: ", sys.argv[1])
         sys.exit()
 else:
     print("Need 2 arguments: 1-data file path; 2-enegry.")
@@ -177,27 +177,31 @@ def func_load_list_from_file(data):
 
 def func_textbox_submit(text):
     win32clipboard.OpenClipboard()
-    data = win32clipboard.GetClipboardData()
+    try:
+        data = win32clipboard.GetClipboardData()
+    except TypeError:
+        data = ''  # non-text
     win32clipboard.CloseClipboard()
-    if data[0] == data[-1] == '\"':
-        data = data[1:-1]
-    if path.exists(data):
-        if data[-5:] ==  ".list":
-            text_box.set_val(data) # MonkeyPatched set_val
-            func_load_list_from_file(data)
+    if data:
+        if data[0] == data[-1] == '\"':
+            data = data[1:-1]
+        if path.exists(data):
+            if data[-5:] ==  ".list":
+                text_box.set_val(data) # MonkeyPatched set_val
+                func_load_list_from_file(str(data))
+            else:
+                text_box.set_val("Incorrect Data Fromat (.list needed): " + data)
         else:
-            text_box.set_val("Incorrect Data Fromat (.list needed): " + data)
-    else:
-        text_box.set_val("Incorrect Path: " + data)
+            text_box.set_val("Incorrect Path: " + data)
 
 # checking interception of itot spans "( )" and created spans "| |".
 # "|"-span_min, "|"-span_max, "("-itot_min, ")"-itot_max - explanation via brackets
 def intercept_intervals(span_min, span_max, itot_min, itot_max):
-    if span_min < itot_min and itot_max < span_max:  # |()|
+    if span_min <= itot_min and itot_max <= span_max:  # |()| (or spans are equal "|==( and )==|")
         return itot_min, itot_max  # ()
-    elif itot_min < span_min < itot_max < span_max:  # (|)|
+    elif itot_min < span_min < itot_max <= span_max:  # (|)| (or two right sides are equal ")==|")
         return round(span_min, 2), itot_max  # |)
-    elif span_min < itot_min < span_max < itot_max:  # |(|)
+    elif span_min <= itot_min < span_max < itot_max:  # |(|) (or two left sides are equal "|==(")
         return itot_min, round(span_max, 2)  # (|
     elif itot_min < span_min < span_max < itot_max:  # (||)
         return round(span_min, 2), round(span_max, 2)  # ||

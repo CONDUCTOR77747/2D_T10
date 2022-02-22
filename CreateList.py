@@ -28,6 +28,7 @@ TextBox.set_val = set_val
 # or if there is no ECRH and ne: "Itot_x	Itot_y	Phi_x	Phi_y	Radius_x	Radius_y"
 
 data_file = None
+shot = None
 
 if len(sys.argv) > 2:
     if sys.argv[1][0] == sys.argv[1][-1] == '\"':
@@ -35,7 +36,8 @@ if len(sys.argv) > 2:
     if path.exists(sys.argv[1]):
         data_file = sys.argv[1]  # data file name to load
         # parameters of signal
-        shot = data_file[4:9]
+        shot = re.findall(r"T10_(.+)_B", data_file)[0]
+        #shot = shot_parse[0]
         energy = sys.argv[2]
     else:
         print("Incorrect Path: " + data_file)
@@ -43,8 +45,6 @@ if len(sys.argv) > 2:
 else:
     print("Need 2 arguments: 1-data file path; 2-enegry.")
     sys.exit()
-
-print(sys.argv[1], sys.argv[2])
 
 # reading data from data file via pandas library. (Creating pandas dataframe)
 df = pd.read_csv(data_file, delimiter="\t")
@@ -257,8 +257,8 @@ def create_list_file(list_scans, list_ne_means):
     # creating output filename
     time_format = '%d-%m-%Y %H:%M:%S'
     file_format = '.list'
-    save_dir = 'Lists/'
-    file_name = data_file[0:-4]
+    save_dir = 'Lists\\'
+    file_name = re.findall(r"T\d+_\d+_B\d+_I\d+", data_file)[0]
 
     #  with timestamp
     # itot_file_path = '%s%s_%s_%s%s' % (save_dir, file_name, 'Itot', datetime.now().strftime(time_format), file_format)

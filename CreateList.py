@@ -51,6 +51,9 @@ if len(sys.argv) > 2:
     else:
         print("Incorrect Path: ", sys.argv[1])
         sys.exit()
+elif len(sys.argv) == 2 and sys.argv[1] == 'test':
+    data_file = 'T10_70942_B17_I200_test.dat'
+    energy = 120
 else:
     print("Need 2 arguments: 1-data file path; 2-enegry.")
     sys.exit()
@@ -63,6 +66,7 @@ ne_flag = 0  # if ne signal exists ne_flag = 1 otherwise ne_flag = 0
 ignore_itot_diapasons_flag = 0
 accuracy = 1000  # accuracy for spline radius derivative recommend value: 500 - 1000
 scans_limit = 100
+maximize_window = 0
 
 """ global variables counter, scan_counter. In functions: plt_scan_counter_update, span_onselect, btn_delete_last_scan
 counts amount of scans and display it
@@ -222,7 +226,7 @@ def func_textbox_submit(__):
             data = data[1:-1]
         if path.exists(data):
             if data[-5:] == ".list":
-                text_box.set_val(data)  # MonkeyPatched set_val
+                text_box.set_val(data)  # MonkeyPatched set_val (matplotlib/widgets/text_box/set_val - patched)
                 func_load_list_from_file(str(data))
             else:
                 text_box.set_val("Incorrect Data Fromat (.list needed): " + data)
@@ -317,25 +321,25 @@ def create_list_file(list_scans, list_ne_means):
 
     f_itot = open(itot_file_path, 'a')
     f_itot.write("!"+datetime.now().strftime(time_format)+'\n')
+    f_phi = open(phi_file_path, 'a')
+    f_phi.write("!" + datetime.now().strftime(time_format) + '\n')
+
     if list_ne_means is not None:
         for i in range(len(list_scans)):
             f_itot.write("T10HIBP::Itot{relosc333, slit3, clean, noz, shot" + shot + ", from" + "{:.2f}".format(list_scans[i][0]) + "to" +
                          "{:.2f}".format(list_scans[i][1]) + "} !" + "{:.3f}".format(list_ne_means[i]) + " #" + shot + ' E = ' + energy + '\n')
+
+            f_phi.write("T10HIBP::Phi{slit3, clean, noz, shot" + shot + ", from" + "{:.2f}".format(list_scans[i][0]) + "to" +
+                    "{:.2f}".format(list_scans[i][1]) + "} !" + "{:.3f}".format(list_ne_means[i]) + " #" + shot + ' E = ' + energy + '\n')
+
     else:
         for i in range(len(list_scans)):
             f_itot.write("T10HIBP::Itot{relosc333, slit3, clean, noz, shot" + shot + ", from" + "{:.2f}".format(list_scans[i][0]) + "to" +
                          str("{:.2f}".format(str(list_scans[i][1]))) + "} !" + " #" + shot + ' E = ' + energy + '\n')
 
-    f_phi = open(phi_file_path, 'a')
-    f_phi.write("!" + datetime.now().strftime(time_format) + '\n')
-    if list_ne_means is not None:
-        for i in range(len(list_scans)):
             f_phi.write("T10HIBP::Phi{slit3, clean, noz, shot" + shot + ", from" + "{:.2f}".format(list_scans[i][0]) + "to" +
-                        "{:.2f}".format(list_scans[i][1]) + "} !" + "{:.3f}".format(list_ne_means[i]) + " #" + shot + ' E = ' + energy + '\n')
-    else:
-        for i in range(len(list_scans)):
-            f_phi.write("T10HIBP::Phi{slit3, clean, noz, shot" + shot + ", from" + "{:.2f}".format(list_scans[i][0]) + "to" +
-                        "{:.2f}".format(list_scans[i][1]) + "} !" + " #" + shot + ' E = ' + energy + '\n')
+                    "{:.2f}".format(list_scans[i][1]) + "} !" + " #" + shot + ' E = ' + energy + '\n')
+
     f_itot.close()
     f_phi.close()
 
@@ -360,11 +364,9 @@ def func_btn_create_lists_on_clicked(_):
             for span in list_axvspans:
                 done_scans.append((round(span.get_xy()[0][0], 2), round(span.get_xy()[-2][0], 2)))
         done_scans.sort()  # sorting diapasons
-        # print(done_scans)  # printing diapasons
         mean_ne = signal_mean_value(list_ne_x, list_ne_y, done_scans, ne_flag)  # getting list of ne mean values of itot
         # intervals
         # if mean_ne is not None:  # if mean values is correct
-        # print(mean_ne)
         create_list_file(done_scans, mean_ne)
         done_scans.clear()  # clearing diapasons list after saving
 
@@ -526,7 +528,16 @@ for legline, origline in zip(leg.get_lines(), lines):
     lined[legline] = origline
 
 fig.canvas.mpl_connect('pick_event', on_pick_legend)  # if legend item is pressed this item will hide
+
+# adding HIBP logo image
+im = plt.imread('Resources/HIBP_logo.png') # insert local path of the image.
+newax = fig.add_axes([0.847,0.847,0.15,0.15], anchor='NE', zorder=1)
+newax.imshow(im)
+newax.axis('off')
+
 # maximize and display plot window
-# mng = plt.get_current_fig_manager()
-# mng.window.state('zoomed')
-plt.show()  # show plot
+if maximize_window:
+    mng = plt.get_current_fig_manager()
+    mng.window.state('zoomed')
+
+plt.show()

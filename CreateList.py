@@ -1,13 +1,17 @@
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 import win32clipboard
-import os.path
 from os import path
 from statistics import mean
 from datetime import datetime
 import re
 import sys
-from matplotlib.widgets import SpanSelector, Cursor, Button, Slider, CheckButtons, TextBox
+from matplotlib.widgets import SpanSelector, Cursor, Button, Slider, \
+CheckButtons, TextBox
+from hibpsig import signal
+from loadsig import sendLoaderCmd
+import import_data as imd
 
 """ MonkeyPatching matplotlib/widgets/TextBox/set_val "set_val without submitting"  """
 
@@ -29,40 +33,74 @@ TextBox.set_val = set_val
 """
 required libraries: pandas, matplotlib, statistics, datetime, re, sys, win32clipboard, os.path
 data file columns: Itot, Phi, ne, Radius, ECRH. Data file name: T10_%shot_number%_B%_I%.
-First row must be: "Itot_x	Itot_y	Phi_x	Phi_y	ne_x	ne_y	Radius_x	Radius_y	ECRH_x	ECRH_y"
+First row must be: "Itot_x	Itot_y	Phi_x	Phi_y	ne_x	ne_y	Ipl_x   Ipl_y   Radius_x	Radius_y	ECRH_x	ECRH_y"
 or if there is no ECRH: "Itot_x	Itot_y	Phi_x	Phi_y	ne_x	ne_y	Radius_x	Radius_y"
 or if there is no ECRH and ne: "Itot_x	Itot_y	Phi_x	Phi_y	Radius_x	Radius_y"
 """
 
+# %% configure LOADER
+sendLoaderCmd(device='t10', mode='mmap', dtype='float32')
+sendLoaderCmd(show_server=False)
 
-data_file = None  # path and name of data file
-shot = None  # shot number
+# %%
+# load ebeam
+def load_ebeam(shot, path):
+    try:
+        with open(path + 'n' + str(shot) + '.inf', 'r') as f:
+            lines = f.readlines()
+        f.close()
+        return round(float((re.findall(r'\d+[.]+\d*', lines[1]))[0]))
+    except IOError:
+        print('\nERROR: Invalid DAS_FILES location\n')
 
-""" using sys.argv for input (command line input): 1st arg - path to data file; 2nd arg - energy """
+#%% Operation
+filename = imd.path_CreateList_save_2dmaps_lists
+path_save_lists = imd.path_CreateList_save_lists
+slit = imd.slit
+shot = 73197
+energy = load_ebeam(shot, imd.DAS_FILES_path)
+time_interval = ''
+radref = imd.load_radrefs(shot, slit, energy)
+print(shot, f'E = {energy}', slit, f'\nrho: {radref}')
 
-if len(sys.argv) > 2:
-    if sys.argv[1][0] == sys.argv[1][-1] == '\"':
-        sys.argv[1] = sys.argv[1][1:-1]
-    if path.exists(sys.argv[1]):
-        data_file = sys.argv[1]  # data file name to load
-        # parameters of signal
-        shot = re.findall(r"T\d+_(.+)_B", data_file)[0]
-        energy = sys.argv[2]
-    else:
-        print("Incorrect Path: ", sys.argv[1])
-        sys.exit()
-elif len(sys.argv) == 2 and sys.argv[1] == 'test':
-    data_file = 'T10_70942_B17_I200_test.dat'
-    energy = 120
-else:
-    print("Need 2 arguments: 1-data file path; 2-enegry.")
-    sys.exit()
+# %% Import signals
+mode = 'no save'
+
+dens = imd.load_signals(mode, 'ne', shot, slit, time_interval)
+alpha2 = imd.load_signals(mode, 'A2', shot, slit, time_interval)
+Itot = imd.load_signals(mode, 'Itot', shot, slit, time_interval)
+Phi = imd.load_signals(mode, 'Phi', shot, slit, time_interval)
+Zd = imd.load_signals(mode, 'Zd', shot, slit, time_interval)
+ECRH = imd.load_signals(mode, 'ECRH', shot, slit, time_interval)
+Radius = imd.load_signals(mode, 'Radius', shot, slit, time_interval, '', radref)
+Ipl = imd.load_signals(mode, 'Ipl', shot, slit, time_interval)
 
 """ reading data from data file via pandas library. (Creating pandas dataframe) """
-df = pd.read_csv(data_file, delimiter="\t")
+
+df = pd.DataFrame()
+df["Itot_x"] = pd.Series(Itot.x)
+df["Itot_y"] = pd.Series(Itot.y)
+df["Phi_x"] = pd.Series(Phi.x)
+df["Phi_y"] = pd.Series(Phi.y)
+df["ne_x"] = pd.Series(dens.x)
+df["ne_y"] = pd.Series(dens.y)
+df["Ipl_x"] = pd.Series(Ipl.x)
+df["Ipl_y"] = pd.Series(Ipl.y)
+df["Radius_x"] = pd.Series(Radius.x)
+df["Radius_y"] = pd.Series(Radius.y)
+df["ECRH_x"] = pd.Series(ECRH.x)
+df["ECRH_y"] = pd.Series(ECRH.y)
+df["A2_x"] = pd.Series(alpha2.x)
+df["A2_y"] = pd.Series(alpha2.y)
+df["Zd_x"] = pd.Series(Zd.x)
+df["Zd_y"] = pd.Series(Zd.y)
+df.fillna("--")
+
+#%% Operation
 
 Itot_y_max_value = 1  # for aligning Radius and ECRH signals
 ne_flag = 0  # if ne signal exists ne_flag = 1 otherwise ne_flag = 0
+Ipl_flag = 0  # if Ipl signal exists Ipl_flag = 1 otherwise Ipl_flag = 0
 ignore_itot_diapasons_flag = 0
 accuracy = 1000  # accuracy for spline radius derivative recommend value: 500 - 1000
 scans_limit = 100
@@ -79,17 +117,17 @@ list_axvspans = []  # list for saving (memorizing) spans. It helps to remove las
 s_c_pos_x = 0.01
 s_c_pos_y = 0.65
 # default values of plots
-plot_Itot, plot_Phi, plot_ne, plot_Radius, plot_ECRH = None, None, None, None, None
-list_Itot_x, list_Itot_y, list_Phi_x, list_Phi_y, list_ne_x = [], [], [], [], []
-list_ne_y, list_Radius_x, list_Radius_y, list_ECRH_x, list_ECRH_y = [], [], [], [], []
+plot_Itot, plot_Phi, plot_ne, plot_Ipl, plot_Radius, plot_ECRH = None, None, None, None, None, None
+list_Itot_x, list_Itot_y, list_Phi_x, list_Phi_y, list_ne_x, list_Ipl_x = [], [], [], [], [], []
+list_ne_y, list_Radius_x, list_Radius_y, list_ECRH_x, list_ECRH_y, list_Ipl_y = [], [], [], [], [], []
 # creating and setting up plot window
 fig, ax = plt.subplots(figsize=(10, 6), dpi=80)
-fig.canvas.manager.set_window_title(str('List Creator - ' + data_file))  # set plot window title
+fig.canvas.manager.set_window_title(str('List Creator - ' + str(shot)))  # set plot window title
 ax.grid()  # set grid
-plt.title(data_file)  # set plot title
+plt.title(str(shot))  # set plot title
 plt.xlabel("t (ms)")  # set x axis label
 
-
+# %% Functions
 """
 Functions:
 
@@ -229,7 +267,7 @@ def func_textbox_submit(__):
                 text_box.set_val(data)  # MonkeyPatched set_val (matplotlib/widgets/text_box/set_val - patched)
                 func_load_list_from_file(str(data))
             else:
-                text_box.set_val("Incorrect Data Fromat (.list needed): " + data)
+                text_box.set_val("Incorrect Data Format (.list needed): " + data)
         else:
             text_box.set_val("Incorrect Path: " + data)
 
@@ -306,8 +344,9 @@ def create_list_file(list_scans, list_ne_means):
     # creating output filename
     time_format = '%d-%m-%Y %H:%M:%S'
     file_format = '.list'
-    save_dir = 'Lists\\'
-    file_name = re.findall(r"T\d+_\d+_B\d+_I\d+", data_file)[0]
+    save_dir = path_save_lists
+    file_name = str(shot)
+    
 
     #  with timestamp
     # itot_file_path = '%s%s_%s_%s%s' % (save_dir, file_name, 'Itot', datetime.now().strftime(time_format), file_format)
@@ -326,23 +365,32 @@ def create_list_file(list_scans, list_ne_means):
 
     if list_ne_means is not None:
         for i in range(len(list_scans)):
-            f_itot.write("T10HIBP::Itot{relosc333, slit3, clean, noz, shot" + shot + ", from" + "{:.2f}".format(list_scans[i][0]) + "to" +
-                         "{:.2f}".format(list_scans[i][1]) + "} !" + "{:.3f}".format(list_ne_means[i]) + " #" + shot + ' E = ' + energy + '\n')
+            f_itot.write("T10HIBP::Itot{relosc333, slit3, clean, noz, shot" + str(shot) + ", from" + "{:.2f}".format(list_scans[i][0]) + "to" +
+                         "{:.2f}".format(list_scans[i][1]) + "} !" + "{:.3f}".format(list_ne_means[i]) + " #" + str(shot) + ' E = ' + str(energy) + '\n')
 
-            f_phi.write("T10HIBP::Phi{slit3, clean, noz, shot" + shot + ", from" + "{:.2f}".format(list_scans[i][0]) + "to" +
-                    "{:.2f}".format(list_scans[i][1]) + "} !" + "{:.3f}".format(list_ne_means[i]) + " #" + shot + ' E = ' + energy + '\n')
+            f_phi.write("T10HIBP::Phi{slit3, clean, noz, shot" + str(shot) + ", from" + "{:.2f}".format(list_scans[i][0]) + "to" +
+                    "{:.2f}".format(list_scans[i][1]) + "} !" + "{:.3f}".format(list_ne_means[i]) + " #" + str(shot) + ' E = ' + str(energy) + '\n')
 
     else:
         for i in range(len(list_scans)):
-            f_itot.write("T10HIBP::Itot{relosc333, slit3, clean, noz, shot" + shot + ", from" + "{:.2f}".format(list_scans[i][0]) + "to" +
-                         str("{:.2f}".format(str(list_scans[i][1]))) + "} !" + " #" + shot + ' E = ' + energy + '\n')
+            f_itot.write("T10HIBP::Itot{relosc333, slit3, clean, noz, shot" + str(shot) + ", from" + "{:.2f}".format(list_scans[i][0]) + "to" +
+                         str("{:.2f}".format(str(list_scans[i][1]))) + "} !" + " #" + str(shot) + ' E = ' + str(energy) + '\n')
 
-            f_phi.write("T10HIBP::Phi{slit3, clean, noz, shot" + shot + ", from" + "{:.2f}".format(list_scans[i][0]) + "to" +
-                    "{:.2f}".format(list_scans[i][1]) + "} !" + " #" + shot + ' E = ' + energy + '\n')
+            f_phi.write("T10HIBP::Phi{slit3, clean, noz, shot" + str(shot) + ", from" + "{:.2f}".format(list_scans[i][0]) + "to" +
+                    "{:.2f}".format(list_scans[i][1]) + "} !" + " #" + str(shot) + ' E = ' + str(energy) + '\n')
 
     f_itot.close()
     f_phi.close()
 
+""" creating list file function for 2D maps """
+
+def create_list_file_2dmaps(list_scans, list_ne_means):
+    # creating content of output file
+    f = open(filename, 'a')
+    for i in range(len(list_scans)):
+        f.write(str(shot) + ' !' + str(energy) + " !from" + "{:.2f}".format(list_scans[i][0]) + "to" +
+                     "{:.2f}".format(list_scans[i][1]) + '\n')
+    f.close()
 
 """ button for creating lists """
 
@@ -368,6 +416,7 @@ def func_btn_create_lists_on_clicked(_):
         # intervals
         # if mean_ne is not None:  # if mean values is correct
         create_list_file(done_scans, mean_ne)
+        create_list_file_2dmaps(done_scans, mean_ne)
         done_scans.clear()  # clearing diapasons list after saving
 
 
@@ -385,9 +434,9 @@ def ignore_itot_diapasons(_):
         ignore_itot_diapasons_flag = 0
         func_sliders_update(threshold_slider.val)
 
+#%% Plot Signals
 
 """ Itot - loading and analyzing Itot signal """
-
 
 if {'Itot_x', 'Itot_y'}.issubset(df.columns):  # does Itot signal exist in data file
     list_Itot_y = df['Itot_y'].tolist()  # loading Itot signals to list
@@ -395,69 +444,16 @@ if {'Itot_x', 'Itot_y'}.issubset(df.columns):  # does Itot signal exist in data 
     Itot_y_max_value = max(list_Itot_y)  # for aligning Radius and ECRH signals
     # Plotting Itot Signal
     plot_Itot, = ax.plot(list_Itot_x, list_Itot_y, label='Itot (kA)', color='royalblue')
-    # Make a horizontal slider to control the min time diapason.
-    mtd_slider_pos = plt.axes([0.65, 0.016, 0.25, 0.03], facecolor='lightgoldenrodyellow')  # min time diapason position
-    # creating slider for min time diapason
-    min_time_diapason_slider = Slider(ax=mtd_slider_pos, label='Minimal \nTime \nDiapason', valmin=0, valmax=3,
-                                      valinit=2.56, valstep=0.01)
 
-    # Make a vertical slider to control the threshold. (Itot signal)
-    # min time diapason position
-    threshold_slider_pos = plt.axes([0.94, 0.2, 0.02, 0.4], facecolor='lightgoldenrodyellow')
-    # creating horizontal slider for min time diapason
-    threshold_slider = Slider(ax=threshold_slider_pos, label='Threshold \n(Itot)', valmin=0, valmax=0.2,
-                              valinit=0.2, valstep=0.01, orientation='vertical')
-    list_axvspans_Itot_spans = []  # list for memorizing all Itot spans
-
-    func_sliders_update(threshold_slider.val)  # plotting spans with initial slider values
-    threshold_slider.on_changed(func_sliders_update)  # if changed create new time diapasons
-    min_time_diapason_slider.on_changed(func_sliders_update)  # if changed create new spans with new threshold
-
-    # scan counter parameters
-    text_scan_counter = ax.text(s_c_pos_x, s_c_pos_y, scan_counter, fontsize=14, transform=plt.gcf().transFigure)
-
-    # span selector parameters
-    span_selector = SpanSelector(ax, span_onselect, 'horizontal', useblit=True,
-                                 props=dict(alpha=0.3, facecolor='tomato'))
-
-    # cursor parameters
-    cursor = Cursor(ax, horizOn=True, vertOn=True, color='grey', linewidth=1, alpha=0.5)
-
-    btn_del_l_s_pos = plt.axes([0.01, 0.79, 0.09, 0.08])  # button for deleting scans position
-    btn_del_last_scan = Button(ax=btn_del_l_s_pos, label='Delete last \n scan')  # button for Del Last Scan parameters
-    # if button clicked - execute function btn_delete_last_scan
-    btn_del_last_scan.on_clicked(
-        btn_delete_last_scan_on_clicked)  # if button was pressed do function btn_delete_last_scan_on_clicked
-
-    btn_all_s_pos = plt.axes([0.01, 0.90, 0.09, 0.08])  # button for deleting scans position
-    btn_all_scans = Button(ax=btn_all_s_pos, label='Delete all \n scans')  # button for Del All Scans parameters
-    # if button clicked - execute function btn_delete_last_scan
-    btn_all_scans.on_clicked(btn_delete_all_scans_on_clicked)  # if the button was pressed
-
-    btn_create_lists_pos = plt.axes([0.01, 0.50, 0.09, 0.08])  # button for creating lists position
-    btn_create_lists = Button(ax=btn_create_lists_pos, label='Create lists')  # button for creating lists parameters
-    btn_create_lists.on_clicked(
-        func_btn_create_lists_on_clicked)  # if button clicked - execute function btn_create_lists
-
-    axCheckButton = plt.axes([0.01, 0.35, 0.08, 0.13])
-    checkbox = CheckButtons(axCheckButton, ['Ignore\nItot\nDiapasons'], [False])
-    checkbox.on_clicked(ignore_itot_diapasons)
+""" Phi - loading and plotting Phi signal """
 
 
-""" Loading saved lists """
-
-
-initial_text = "Press Here to Paste List Path from Clipboard and Load Data"
-axbox = plt.axes([0.3, 0.94, 0.5, 0.05])  # position of textbox x,y,w,h
-text_box = TextBox(axbox, 'Load List:', initial=initial_text)  # creating textbox
-text_box.on_submit(func_textbox_submit)  # If Enter pressed (submitting by default)
-
-# Phi - loading and plotting Phi signal
 if {'Phi_x', 'Phi_y'}.issubset(df.columns):
     list_Phi_y = df['Phi_y'].tolist()  # loading Phi signals to list
     list_Phi_x = df['Phi_x'].tolist()
+    list_Phi_y_aligned = [y*2 for y in list_Phi_y]
     # Plotting Phi Signal
-    plot_Phi, = ax.plot(list_Phi_x, list_Phi_y, label='Phi (kV)', color='magenta')
+    plot_Phi, = ax.plot(list_Phi_x, list_Phi_y_aligned, label='Phi (kV)', color='magenta')
 
 
 """ ne - loading, cleaning and plotting ne signal. Cleaning because of different dimension of ne signal (about 11998
@@ -476,6 +472,26 @@ if {'ne_x', 'ne_y'}.issubset(df.columns):
     plot_ne, = ax.plot(list_ne_x, list_ne_y, label='ne (10^-19 m^-3)', color='red')
 
 
+""" Ipl - loading, cleaning and plotting Ipl signal. Cleaning because of different dimension of ne signal (about 11998
+points) in comparison with Itot, Phi, Radius signals (about 1 million points)  """
+
+
+if {'Ipl_x', 'Ipl_y'}.issubset(df.columns):
+    Ipl_flag = 1
+    list_Ipl_y_dirty = df['Ipl_y'].tolist()  # loading Ipl signals to list
+    list_Ipl_x_dirty = df['Ipl_x'].tolist()
+    list_Ipl_y_not_align = [float(y) for y in list_Ipl_y_dirty if y != "--"]  # making Ipl signal clean
+    list_Ipl_x = [float(x) for x in list_Ipl_x_dirty if x != "--"]
+    Ipl_y_max_value = -min(list_Ipl_y_not_align)
+    # tricky to understand значение тока плазмы отрицательно ищу минимальное значение и ставлю минус значит максимальное значение
+    Ipl_y_max_value = -min(list_Ipl_y_not_align)
+    list_Ipl_y = [-y*Itot_y_max_value/Ipl_y_max_value for y in list_Ipl_y_not_align]
+    list_Ipl_y_dirty.clear()  # delete dirty signal lists with "--"
+    list_Ipl_x_dirty.clear()
+    # Plotting Ipl Signal
+    plot_Ipl, = ax.plot(list_Ipl_x, list_Ipl_y, label='Ipl (kA) Aligned', color='blue')
+
+
 """ Radius - loading, set align and scale of Radius signal """
 
 
@@ -485,8 +501,7 @@ if {'Radius_x', 'Radius_y'}.issubset(df.columns):
     # aligning radius
     Radius_y_min_value = min(list_Radius_y)  # for aligning Radius
     Radius_y_max_value = max(list_Radius_y)
-    list_Radius_y_aligned = [(y - Radius_y_min_value) * Itot_y_max_value / (Radius_y_max_value - Radius_y_min_value) for
-                             y in list_Radius_y]
+    list_Radius_y_aligned = [(y - Radius_y_min_value) * Itot_y_max_value / (Radius_y_max_value - Radius_y_min_value) for y in list_Radius_y]
     # Plotting Aligned Radius Signal
     plot_Radius, = ax.plot(list_Radius_x, list_Radius_y_aligned, label='Radius Aligned', color='green')
 
@@ -512,14 +527,106 @@ if {'ECRH_x', 'ECRH_y'}.issubset(df.columns):
         # Plotting ECRH Signal
         plot_ECRH, = ax.plot(list_ECRH_x, list_ECRH_y_aligned, label='ECRH Aligned', color='orange')
 
+""" A2 - loading, cleaning and plotting A2 signal. Cleaning because of different dimension of ne signal (about 11998
+points) in comparison with Itot, Phi, Radius signals (about 1 million points)  """
+
+
+if {'A2_x', 'A2_y'}.issubset(df.columns):
+    ne_flag = 1
+    list_A2_y_dirty = df['A2_y'].tolist()  # loading A2 signals to list
+    list_A2_x_dirty = df['A2_x'].tolist()
+    list_A2_y = [float(y) for y in list_A2_y_dirty if y != "--"]  # making A2 signal clean
+    list_A2_x = [float(x) for x in list_A2_x_dirty if x != "--"]
+    list_A2_y_dirty.clear()  # delete dirty signal lists with "--"
+    list_A2_x_dirty.clear()
+    A2_y_min_value = min(list_A2_y)  # for aligning A2
+    A2_y_max_value = max(list_A2_y)
+    list_A2_y_aligned = [y-(A2_y_max_value+A2_y_min_value)/2. for y in list_A2_y]
+    # Plotting A2 Signal
+    plot_A2, = ax.plot(list_A2_x, list_A2_y_aligned, label='A2 aligned')
+    
+    
+""" Zd - loading, cleaning and plotting Zd signal. Cleaning because of different dimension of ne signal (about 11998
+points) in comparison with Itot, Phi, Radius signals (about 1 million points)  """
+
+
+if {'Zd_x', 'Zd_y'}.issubset(df.columns):
+    ne_flag = 1
+    list_Zd_y_dirty = df['Zd_y'].tolist()  # loading ne signals to list
+    list_Zd_x_dirty = df['Zd_x'].tolist()
+    list_Zd_y = [float(y) for y in list_Zd_y_dirty if y != "--"]  # making Zd signal clean
+    list_Zd_x = [float(x) for x in list_Zd_x_dirty if x != "--"]
+    list_Zd_y_dirty.clear()  # delete dirty signal lists with "--"
+    list_Zd_x_dirty.clear()
+    list_Zd_y_aligned = [y*10 for y in list_Zd_y]
+    # Plotting Zd Signal
+    plot_Zd, = ax.plot(list_Zd_x, list_Zd_y_aligned, label='Zd aligned', color='black')
+
 del df  # removes all pandas dataframe from memory
 
+#%% Add Wigdets
+
+# Make a horizontal slider to control the min time diapason.
+mtd_slider_pos = plt.axes([0.65, 0.016, 0.25, 0.03], facecolor='lightgoldenrodyellow')  # min time diapason position
+# creating slider for min time diapason
+min_time_diapason_slider = Slider(ax=mtd_slider_pos, label='Minimal \nTime \nDiapason', valmin=0, valmax=3,
+                                  valinit=2.56, valstep=0.01)
+
+# Make a vertical slider to control the threshold. (Itot signal)
+# min time diapason position
+threshold_slider_pos = plt.axes([0.94, 0.2, 0.02, 0.4], facecolor='lightgoldenrodyellow')
+# creating horizontal slider for min time diapason
+threshold_slider = Slider(ax=threshold_slider_pos, label='Threshold \n(Itot)', valmin=0, valmax=0.2,
+                          valinit=0.2, valstep=0.01, orientation='vertical')
+list_axvspans_Itot_spans = []  # list for memorizing all Itot spans
+
+func_sliders_update(threshold_slider.val)  # plotting spans with initial slider values
+threshold_slider.on_changed(func_sliders_update)  # if changed create new time diapasons
+min_time_diapason_slider.on_changed(func_sliders_update)  # if changed create new spans with new threshold
+
+# scan counter parameters
+text_scan_counter = ax.text(s_c_pos_x, s_c_pos_y, scan_counter, fontsize=14, transform=plt.gcf().transFigure)
+
+# span selector parameters
+span_selector = SpanSelector(ax, span_onselect, 'horizontal', useblit=True,
+                             props=dict(alpha=0.3, facecolor='tomato'))
+
+# cursor parameters
+cursor = Cursor(ax, horizOn=True, vertOn=True, color='grey', linewidth=1, alpha=0.5)
+
+btn_del_l_s_pos = plt.axes([0.01, 0.79, 0.09, 0.08])  # button for deleting scans position
+btn_del_last_scan = Button(ax=btn_del_l_s_pos, label='Delete last \n scan')  # button for Del Last Scan parameters
+# if button clicked - execute function btn_delete_last_scan
+btn_del_last_scan.on_clicked(
+    btn_delete_last_scan_on_clicked)  # if button was pressed do function btn_delete_last_scan_on_clicked
+
+btn_all_s_pos = plt.axes([0.01, 0.90, 0.09, 0.08])  # button for deleting scans position
+btn_all_scans = Button(ax=btn_all_s_pos, label='Delete all \n scans')  # button for Del All Scans parameters
+# if button clicked - execute function btn_delete_last_scan
+btn_all_scans.on_clicked(btn_delete_all_scans_on_clicked)  # if the button was pressed
+
+btn_create_lists_pos = plt.axes([0.01, 0.50, 0.09, 0.08])  # button for creating lists position
+btn_create_lists = Button(ax=btn_create_lists_pos, label='Create lists')  # button for creating lists parameters
+btn_create_lists.on_clicked(
+    func_btn_create_lists_on_clicked)  # if button clicked - execute function btn_create_lists
+
+# Ignore Itot diapasons checkbox
+axCheckButton = plt.axes([0.01, 0.35, 0.08, 0.13])
+checkbox = CheckButtons(axCheckButton, ['Ignore\nItot\nDiapasons'], [ignore_itot_diapasons_flag])
+checkbox.on_clicked(ignore_itot_diapasons)
+
+""" Loading saved lists """
+
+initial_text = "Press Here to Paste List Path from Clipboard and Load Data"
+axbox = plt.axes([0.3, 0.94, 0.5, 0.05])  # position of textbox x,y,w,h
+text_box = TextBox(axbox, 'Load List:', initial=initial_text)  # creating textbox
+text_box.on_submit(func_textbox_submit)  # If Enter pressed (submitting by default)
 
 """ creating interactive legend """
 
 
 leg = ax.legend(loc='lower left', bbox_to_anchor=(-0.16, -0.15), framealpha=0.8)  # set legend on plot
-pre_lines = [plot_Itot, plot_Phi, plot_ne, plot_Radius, plot_ECRH]
+pre_lines = [plot_Itot, plot_Phi, plot_ne, plot_Ipl, plot_Radius, plot_ECRH, plot_A2, plot_Zd]
 lines = list(filter(None, pre_lines))  # cleaning the list from Nones if some plots haven't been plotted
 lined = {}  # Will map legend lines to original lines.
 for legline, origline in zip(leg.get_lines(), lines):
@@ -530,7 +637,7 @@ for legline, origline in zip(leg.get_lines(), lines):
 fig.canvas.mpl_connect('pick_event', on_pick_legend)  # if legend item is pressed this item will hide
 
 # adding HIBP logo image
-im = plt.imread('Resources/HIBP_logo.png') # insert local path of the image.
+im = plt.imread('resources/HIBP_logo.png') # insert local path of the image.
 newax = fig.add_axes([0.847,0.847,0.15,0.15], anchor='NE', zorder=1)
 newax.imshow(im)
 newax.axis('off')

@@ -44,9 +44,9 @@ def get_signal(signal_name, df):
 
     """
     if signal_name == "Phi":
-        return df['Phi'].to_numpy(), r'$\varphi$ (kV)', -1.5, 0.4 #-0.5, 0.5
+        return df['Phi'].to_numpy(), r'$\varphi$, кВ', -1.5, 0.4 #-0.5, 0.5
     elif signal_name == "RMSPhi":
-        return df['RMSPhi'].to_numpy(), 'RMS '+r'$\varphi$ (kV)',  0, 0.15
+        return df['RMSPhi'].to_numpy(), 'RMS '+r'$\varphi$, кВ',  0, 0.15
     elif signal_name == "Itot":
         return df['Itot'].to_numpy(), 'Itot',  -1.0, 1.0
     elif signal_name == "RMSItot":
@@ -500,8 +500,8 @@ if show_title_flag:
 
 
 ax.set_aspect('equal', adjustable='box')
-ax.set_xlabel('x (cm)', size=text_size)
-ax.set_ylabel('y (cm)', size=text_size)
+ax.set_xlabel('x, см', size=text_size)
+ax.set_ylabel('y, см', size=text_size)
 ax.tick_params(axis='both', labelsize=text_size)
 ax.set_xlim(-3, 30)
 ax.set_ylim(-3, 30)

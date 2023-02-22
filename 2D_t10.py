@@ -93,7 +93,7 @@ show_dots_flag = 1
 show_title_flag = 0
 colorbar_flag = 1
 log_colorbar_flag = 0
-grid_flag = 0
+grid_flag = 1
 sort_ne_intdots_zd_flag = 1
 signal_name = 'Phi' # Phi RMSPhi Itot RMSItot RelRMSItot
 
@@ -369,49 +369,52 @@ plt.rcParams['axes.grid.axis'] = "both"
 # plt.rcParams['figure.figsize'] = (5, 10)
 
 #%% Grid Plot
-flag_grid_one_enegry = 240
-if grid_flag:  
-    # get colors for plotting grid
-    def get_color(ebeam):
-        colors = []
-        ebeams = []
-        j = 0
-        for i in range(150, 351, 10):
-            colors.append(f'C{j}')
-            ebeams.append(i)
-            j += 1
-        for n in range(len(ebeams)):
-            if ebeam == ebeams[n]:
-                return colors[n]
-    ebeams = []
-    texts = []
-    grouped = df_imported.groupby('time_interval')
-    for name in df['time_interval'].unique():
-        temp = grouped.get_group(name)
-        if flag_grid_one_enegry and int(temp['Ebeam'].unique()) == flag_grid_one_enegry: #need to delete
-            grid_plot = ax.plot(temp['x'].to_numpy(), temp['y'].to_numpy(), 
-                                linewidth=7, solid_capstyle='round',
-                                label='#{} {} keV'.format(int(temp['Shot'].unique()[0]), 
-                                                          int(temp['Ebeam'].unique())), 
-                                c = get_color(temp['Ebeam'].unique()[0])) #choose color
-            texts.append(grid_plot)
 
-    grouped = df_imported.groupby('Ebeam')
-    #pos = [-0.4,-0.5,-0.5,-0.0,-0.7,-0.5,-0.3,0,0,0.2,0.3,-0.1,-0.2,5]
-    for ebeam in df['Ebeam'].unique():
-        
-        temp = grouped.get_group(ebeam)
-        
-        if flag_grid_one_enegry and int(temp['Ebeam'].unique()) == flag_grid_one_enegry: #need to delete
-            x = temp['x'].to_numpy()[np.argmin(temp['y'].to_numpy())] - 0 #+ pos[j]
-            y = np.min(temp['y'].to_numpy()) - 3
+# get colors for plotting grid
+def get_color(ebeam):
+    colors = []
+    ebeams = []
+    j = 0
+    for i in range(150, 351, 10):
+        colors.append(f'C{j}')
+        ebeams.append(i)
+        j += 1
+    for n in range(len(ebeams)):
+        if ebeam == ebeams[n]:
+            return colors[n]
+
+set_of_energies = sorted(list(set(energies)))
+if grid_flag: 
+    for flag_grid_one_enegry in set_of_energies:
+        ebeams = []
+        texts = []
+        grouped = df_imported.groupby('time_interval')
+        for name in df['time_interval'].unique():
+            temp = grouped.get_group(name)
+            if flag_grid_one_enegry and int(temp['Ebeam'].unique()) == flag_grid_one_enegry: #need to delete
+                grid_plot = ax.plot(temp['x'].to_numpy(), temp['y'].to_numpy(), 
+                                    linewidth=7, solid_capstyle='round',
+                                    label='#{} {} keV'.format(int(temp['Shot'].unique()[0]), 
+                                                              int(temp['Ebeam'].unique())), 
+                                    c = get_color(temp['Ebeam'].unique()[0])) #choose color
+                texts.append(grid_plot)
+    
+        grouped = df_imported.groupby('Ebeam')
+        #pos = [-0.4,-0.5,-0.5,-0.0,-0.7,-0.5,-0.3,0,0,0.2,0.3,-0.1,-0.2,5]
+        for ebeam in df['Ebeam'].unique():
             
-            ax.annotate(text=str(temp['Ebeam'].unique()[0]), xy=(x, y), 
-                        fontsize=text_size-5, rotation=-60, weight='bold', 
-                        c=get_color(temp['Ebeam'].unique()[0]), 
-                        path_effects=[path_effects.Stroke(linewidth=1.75, foreground='black'),
-                           path_effects.Normal()],
-                        bbox=dict(boxstyle="square", alpha=1, pad=0, color='white'))
+            temp = grouped.get_group(ebeam)
+            
+            if flag_grid_one_enegry and int(temp['Ebeam'].unique()) == flag_grid_one_enegry: #need to delete
+                x = temp['x'].to_numpy()[np.argmin(temp['y'].to_numpy())] - 0 #+ pos[j]
+                y = np.min(temp['y'].to_numpy()) - 3
+                
+                ax.annotate(text=str(temp['Ebeam'].unique()[0]), xy=(x, y), 
+                            fontsize=text_size-5, rotation=-60, weight='bold', 
+                            c=get_color(temp['Ebeam'].unique()[0]), 
+                            path_effects=[path_effects.Stroke(linewidth=1.75, foreground='black'),
+                               path_effects.Normal()],
+                            bbox=dict(boxstyle="square", alpha=1, pad=0, color='white'))
         
     # plt.legend()
 #%% Interpolate dots and plot 2d map

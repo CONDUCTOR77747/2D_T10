@@ -46,6 +46,8 @@ def get_signal(signal_name, df):
     """
     if signal_name == "Phi":
         return df['Phi'].to_numpy(), r'$\varphi$, кВ', -1.5, 0.4 #-0.5, 0.5
+    if signal_name == "PhiRaw":
+        return df['Phi'].to_numpy(), r'$\varphi$, кВ', -1.5, 0.4 #-0.5, 0.5
     elif signal_name == "RMSPhi":
         return df['RMSPhi'].to_numpy(), 'RMS '+r'$\varphi$, кВ',  0, 0.15
     elif signal_name == "Itot":
@@ -203,8 +205,8 @@ for i in range(len(shots)):
 
             res = np.append(res, [[shots[i], energies[i], time_intervals[i], 
                                    ne_mean, x, y, rho, Ua2, Phi_interp(Ua2),
-                                  RMSPhi_interp(Ua2), Itot_interp(Ua2),
-                                  RMSItot_interp(Ua2), RelRMSItot_interp(Ua2),
+                                  0, 0,
+                                  0, 0,
                                   Zd_interp(Ua2)]], axis=0)
 
 print('\nloaded:', path_load_list)
@@ -549,7 +551,7 @@ for i in range(len(df)):
     str_Zd = str(round(df['Zd'].to_numpy()[i], 3))
     str_RhoEval = str(round(np.sqrt((df['x'].to_numpy()[i])**2+(df['y'].to_numpy()[i])**2),3))
     str_A2 = str(round(df['Ua2'].to_numpy()[i], 3))
-    if signal_name == 'Phi':
+    if signal_name == 'PhiRaw':
         label = f'Shot: {str_shot}\nE: {str_Ebeam}\nTI: {str_TI}\nne: {str_ne}\n\
 Phi: {str_Phi}\nx = {str_x}\ny = {str_y}\nRho: {str_RhoEval}\nZd: {str_Zd}\n A2: {str_A2}'
     elif signal_name == 'RMSPhi':

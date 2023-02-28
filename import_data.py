@@ -167,27 +167,16 @@ def get_signame(name, slit, time_interval, radref=''):
         return 'T10HIBP::Phi{' + slit + \
                      ', clean, noz, rar22, avg1111n11, G=2.8569, ' \
                      + time_interval + '}'
-    
-    elif name == 'PhiRaw':
-        return 'T10HIBP::Phi{' + slit + ', clean, noz ' + time_interval + '}'
                      
     elif name == 'Zd':
          return 'T10HIBP::Zd{' + slit + ', avg333n11, rar22, brk, clean, noz, ' + \
                        time_interval + '}'
-    
-    elif name == 'ZdRaw':
-         return 'T10HIBP::Zd{' + slit + ', brk, clean, noz, ' + \
-                       time_interval + '}' 
 
     elif name == 'ECRH':
          return 'I.EC{x-1, z80, avg33}'
      
     elif name == 'Radius':
          return 'T10HIBP::Radius{noz, avg1111, rar22, clean, \
-     ?' + radref + ',' + time_interval + '}'
-    
-    elif name == 'RadiusRaw':
-         return 'T10HIBP::Radius{noz, clean, \
      ?' + radref + ',' + time_interval + '}'
      
     elif name == 'Ipl':
@@ -196,10 +185,6 @@ def get_signame(name, slit, time_interval, radref=''):
     elif name == 'A2':
          return 'T10HIBP::A2{' + slit + ', avg111, rar22, ' +\
                          time_interval + '}'
-                         
-    elif name == 'A2Raw':
-         return 'T10HIBP::A2{' + slit + ', ' +\
-                         time_interval + '}'                     
      
     elif name == 'RMSPhi':
          return 'T10HIBP::Phi{' + slit + ', rms1001, clean, noz, \

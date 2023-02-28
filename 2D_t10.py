@@ -96,7 +96,7 @@ colorbar_flag = 1
 log_colorbar_flag = 0
 grid_flag = 0
 sort_ne_intdots_zd_flag = 1
-signal_name = 'PhiRaw' # Phi PhiRaw RMSPhi Itot RMSItot RelRMSItot
+signal_name = 'Phi' # Phi PhiRaw RMSPhi Itot RMSItot RelRMSItot
 
 sort_zd_flag = 1
 z_min_val, z_max_val = -0.75, 0.75 # Zd filter (mask)
@@ -129,15 +129,12 @@ for i in range(len(shots)):
     
     dens = imd.load_signals(mode, 'ne', shots[i], slit, time_intervals[i], path_obj)
     alpha2 = imd.load_signals(mode, 'A2', shots[i], slit, time_intervals[i], path_obj)
-    alpha2Raw = imd.load_signals(mode, 'A2Raw', shots[i], slit, time_intervals[i], path_obj)
     Itot = imd.load_signals(mode, 'Itot', shots[i], slit, time_intervals[i], path_obj)
     RMSItot = imd.load_signals(mode, 'RMSItot', shots[i], slit, time_intervals[i], path_obj)
     RelRMSItot = imd.load_signals(mode, 'RelRMSItot', shots[i], slit, time_intervals[i], path_obj)
     Phi = imd.load_signals(mode, 'Phi', shots[i], slit, time_intervals[i], path_obj)
-    PhiRaw = imd.load_signals(mode, 'PhiRaw', shots[i], slit, time_intervals[i], path_obj)
     RMSPhi = imd.load_signals(mode, 'RMSPhi', shots[i], slit, time_intervals[i], path_obj)
     Zd = imd.load_signals(mode, 'Zd', shots[i], slit, time_intervals[i], path_obj)
-    ZdRaw = imd.load_signals(mode, 'ZdRaw', shots[i], slit, time_intervals[i], path_obj)
     
     ne_mean = np.mean(dens.y)
     ne_list.append(ne_mean)
@@ -149,41 +146,28 @@ for i in range(len(shots)):
     # dens_interp = interpolate.interp1d(dens.x, dens.y)
     # Phi.y = Phi.y * dens_interp(Phi.x) / dens_base
     
-    if signal_name == 'PhiRaw':
-        # make Ua2 interpolants
-        inds = alpha2Raw.y.argsort()
-        
-        # Interpolate data sets according to A2 points number
-        Phi_interp = interpolate.interp1d(bin_mean(alpha2Raw.y[inds]),
-                                          bin_mean(PhiRaw.y[inds]),
+    # make Ua2 interpolants
+    inds = alpha2.y.argsort()
+    
+    # Interpolate data sets according to A2 points number
+    Phi_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
+                                      bin_mean(Phi.y[inds]),
+                                      bounds_error=False)
+    RMSPhi_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
+                                          bin_mean(RMSPhi.y[inds]),
+                                          bounds_error=False)   
+    Itot_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
+                                       bin_mean(Itot.y[inds]),
+                                       bounds_error=False)
+    RMSItot_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
+                                          bin_mean(RMSItot.y[inds]),
                                           bounds_error=False)
-
-        Zd_interp = interpolate.interp1d(bin_mean(alpha2Raw.y[inds]),
-                                         bin_mean(ZdRaw.y[inds]),
-                                         bounds_error=False)
-    else:
-        # make Ua2 interpolants
-        inds = alpha2.y.argsort()
-        
-        # Interpolate data sets according to A2 points number
-        Phi_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
-                                          bin_mean(Phi.y[inds]),
-                                          bounds_error=False)
-        RMSPhi_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
-                                              bin_mean(RMSPhi.y[inds]),
-                                              bounds_error=False)   
-        Itot_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
-                                           bin_mean(Itot.y[inds]),
-                                           bounds_error=False)
-        RMSItot_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
-                                              bin_mean(RMSItot.y[inds]),
-                                              bounds_error=False)
-        RelRMSItot_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
-                                                 bin_mean(RelRMSItot.y[inds]),
-                                                 bounds_error=False)
-        Zd_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
-                                         bin_mean(Zd.y[inds]),
-                                         bounds_error=False)
+    RelRMSItot_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
+                                             bin_mean(RelRMSItot.y[inds]),
+                                             bounds_error=False)
+    Zd_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
+                                     bin_mean(Zd.y[inds]),
+                                     bounds_error=False)
 
     # get discrete Ua2, rho and x,y values from radref files
     fname = imd.load_radrefs(shots[i], slit, energies[i], 'file')

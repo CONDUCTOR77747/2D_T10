@@ -15,6 +15,7 @@ import mplcursors
 import sys
 import copy
 import matplotlib.patheffects as path_effects
+from shapely.geometry import LineString, Point
 
 #%% Functions
 
@@ -86,19 +87,22 @@ elif mode == 2:
 path_save_list = imd.path_2d_t10_save
 path_obj = imd.path_2d_t10_save_obj
 
-xy_eps = 0.5
-ne_eps = 0.2
+xy_eps = 0.3 # dots interceprion
+ne_eps = 0.2 #+-0.1
 interpolation_flag = 1
 show_dots_flag = 1
 show_title_flag = 0
 colorbar_flag = 1
 log_colorbar_flag = 0
-grid_flag = 1
+grid_flag = 0
 sort_ne_intdots_zd_flag = 1
-signal_name = 'Phi' # Phi RMSPhi Itot RMSItot RelRMSItot
+signal_name = 'PhiRaw' # Phi PhiRaw RMSPhi Itot RMSItot RelRMSItot
 
 sort_zd_flag = 1
 z_min_val, z_max_val = -0.75, 0.75 # Zd filter (mask)
+
+phi_profiles_flag = 1
+phi_profiles_mode = 'ne_colorbar' #time_intervals, shots, ebeams
 
 slit = imd.slit
 # %% Import Data
@@ -125,12 +129,15 @@ for i in range(len(shots)):
     
     dens = imd.load_signals(mode, 'ne', shots[i], slit, time_intervals[i], path_obj)
     alpha2 = imd.load_signals(mode, 'A2', shots[i], slit, time_intervals[i], path_obj)
+    alpha2Raw = imd.load_signals(mode, 'A2Raw', shots[i], slit, time_intervals[i], path_obj)
     Itot = imd.load_signals(mode, 'Itot', shots[i], slit, time_intervals[i], path_obj)
     RMSItot = imd.load_signals(mode, 'RMSItot', shots[i], slit, time_intervals[i], path_obj)
     RelRMSItot = imd.load_signals(mode, 'RelRMSItot', shots[i], slit, time_intervals[i], path_obj)
     Phi = imd.load_signals(mode, 'Phi', shots[i], slit, time_intervals[i], path_obj)
+    PhiRaw = imd.load_signals(mode, 'PhiRaw', shots[i], slit, time_intervals[i], path_obj)
     RMSPhi = imd.load_signals(mode, 'RMSPhi', shots[i], slit, time_intervals[i], path_obj)
     Zd = imd.load_signals(mode, 'Zd', shots[i], slit, time_intervals[i], path_obj)
+    ZdRaw = imd.load_signals(mode, 'ZdRaw', shots[i], slit, time_intervals[i], path_obj)
     
     ne_mean = np.mean(dens.y)
     ne_list.append(ne_mean)
@@ -141,29 +148,42 @@ for i in range(len(shots)):
     # correct Phi according to line averaged density
     # dens_interp = interpolate.interp1d(dens.x, dens.y)
     # Phi.y = Phi.y * dens_interp(Phi.x) / dens_base
-
-    # make Ua2 interpolants
-    inds = alpha2.y.argsort()
     
-    # Interpolate data sets according to A2 points number
-    Phi_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
-                                      bin_mean(Phi.y[inds]),
-                                      bounds_error=False)
-    RMSPhi_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
-                                          bin_mean(RMSPhi.y[inds]),
-                                          bounds_error=False)   
-    Itot_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
-                                       bin_mean(Itot.y[inds]),
-                                       bounds_error=False)
-    RMSItot_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
-                                          bin_mean(RMSItot.y[inds]),
+    if signal_name == 'PhiRaw':
+        # make Ua2 interpolants
+        inds = alpha2Raw.y.argsort()
+        
+        # Interpolate data sets according to A2 points number
+        Phi_interp = interpolate.interp1d(bin_mean(alpha2Raw.y[inds]),
+                                          bin_mean(PhiRaw.y[inds]),
                                           bounds_error=False)
-    RelRMSItot_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
-                                             bin_mean(RelRMSItot.y[inds]),
-                                             bounds_error=False)
-    Zd_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
-                                     bin_mean(Zd.y[inds]),
-                                     bounds_error=False)
+
+        Zd_interp = interpolate.interp1d(bin_mean(alpha2Raw.y[inds]),
+                                         bin_mean(ZdRaw.y[inds]),
+                                         bounds_error=False)
+    else:
+        # make Ua2 interpolants
+        inds = alpha2.y.argsort()
+        
+        # Interpolate data sets according to A2 points number
+        Phi_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
+                                          bin_mean(Phi.y[inds]),
+                                          bounds_error=False)
+        RMSPhi_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
+                                              bin_mean(RMSPhi.y[inds]),
+                                              bounds_error=False)   
+        Itot_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
+                                           bin_mean(Itot.y[inds]),
+                                           bounds_error=False)
+        RMSItot_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
+                                              bin_mean(RMSItot.y[inds]),
+                                              bounds_error=False)
+        RelRMSItot_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
+                                                 bin_mean(RelRMSItot.y[inds]),
+                                                 bounds_error=False)
+        Zd_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
+                                         bin_mean(Zd.y[inds]),
+                                         bounds_error=False)
 
     # get discrete Ua2, rho and x,y values from radref files
     fname = imd.load_radrefs(shots[i], slit, energies[i], 'file')
@@ -323,6 +343,8 @@ if sort_ne_intdots_zd_flag:
         print(f'{[counter]} E: {ebeam}, len = {df_len}',)
         counter = counter + 1
     
+    print(f'Total {len(df)} dots.')
+    
     for ebeam in list_ebeam:
         list_dropped = []
     
@@ -367,6 +389,76 @@ plt.rcParams['legend.fontsize'] = text_size-5
 plt.rcParams['axes.linewidth'] = 2.0
 plt.rcParams['axes.grid.axis'] = "both"
 # plt.rcParams['figure.figsize'] = (5, 10)
+
+#%% Plot Phi profiles
+if phi_profiles_flag:
+    fig, ax_phi_prof = plt.subplots()
+    lines = []
+    
+    if phi_profiles_mode == "mono":
+    
+        x = df['rho'].to_list()
+        
+        y = df['Phi'].to_list()
+        
+        for i in range(len(x)):
+            line = ax_phi_prof.errorbar(x, 
+                                        y, 
+                                        xerr=0.5, yerr=0.05, fmt='o',
+                                        ecolor='gray', elinewidth=0.5, capsize=4, 
+                                        capthick=0.5,
+                    label=f'Shot: {0}\nE: {energies[i]}\nTI: {0}\nne: {0}')
+    
+    
+    if phi_profiles_mode == "ne_colorbar":   
+        cm = plt.cm.get_cmap('jet')
+    
+        x = df['rho']
+        
+        y = df['Phi']
+        
+        error = np.ones(len(x))*0.05
+        
+    #     line = ax_phi_prof.errorbar(x, 
+    #                                 y, 
+    #                                 xerr=0.5, yerr=0.05, fmt='o',
+    #                                 ecolor='gray', elinewidth=0.5, capsize=4, 
+    #                                 capthick=0.5,
+    # label=f'Shot: {shots[i]}\nE: {energies[i]}\nTI: {0}\nne: {0}')
+        
+        sc = plt.scatter(x,y,s=0,c=df['ne'])
+    
+    #create colorbar according to the scatter plot
+        clb = plt.colorbar(sc)
+        
+        import matplotlib
+        import matplotlib.cm as cm
+        norm = matplotlib.colors.Normalize(vmin=min(df['ne']), vmax=max(df['ne']), clip=True)
+        mapper = cm.ScalarMappable(norm=norm, cmap='viridis')
+        time_color = np.array([(mapper.to_rgba(v)) for v in df['ne']])
+        
+        #loop over each data point to plot
+        for x1, y1, e, color in zip(x, y, error, time_color):
+            plt.plot(x1, y1, 'o', color=color)
+            plt.errorbar(x1, y1, e, lw=1, capsize=3, color=color)
+            
+            cursor = mplcursors.cursor(lines, highlight=True, multiple=True)
+    
+    # Plot parameters
+    
+    text_size = 35
+    ax_phi_prof.tick_params(axis='both', labelsize=text_size)
+    ax_phi_prof.grid()
+    #ax_phi_prof.set_xlim(7, 35)
+    #ax_phi_prof.set_ylim(-1.6, 0.25)
+    plt.subplots_adjust(top=0.9,
+    bottom=0.11,
+    left=0.26,
+    right=0.8,
+    hspace=0.2,
+    wspace=0.2)
+    ax_phi_prof.set_xlabel('r, см', size=text_size)
+    ax_phi_prof.set_ylabel(r'$\varphi$, кВ', size=text_size)
 
 #%% Grid Plot
 
@@ -491,6 +583,10 @@ if interpolation_flag:
                 origin='lower',
                 extent=[xmin, xmax, ymin, ymax],
                 norm=norm, cmap=cmap)
+    # ax.contourf(grid, interpolation='none',
+    #             origin='lower',
+    #             extent=[xmin, xmax, ymin, ymax],
+    #             norm=norm, cmap=cmap)
 
 if colorbar_flag:
     cbar = plt.colorbar(sc, ax=ax)

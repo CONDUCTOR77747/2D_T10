@@ -17,6 +17,7 @@ import sys
 import copy
 import matplotlib.patheffects as path_effects
 from shapely.geometry import LineString, Point
+import seaborn as sns
 
 #%% Functions
 
@@ -373,6 +374,7 @@ plt.rcParams['ytick.labelsize'] = text_size
 plt.rcParams['legend.fontsize'] = text_size-5
 plt.rcParams['axes.linewidth'] = 2.0
 plt.rcParams['axes.grid.axis'] = "both"
+# sns.color_palette('Dark2')
 # plt.rcParams['figure.figsize'] = (5, 10)
 
 #%% Plot Phi profiles
@@ -400,24 +402,23 @@ if phi_profiles_flag:
         
         y = df['Phi']
         
-        error = np.ones(len(x))*0.05
-        
         sc = plt.scatter(x,y,s=0,c=df['ne'])
     
         #create colorbar according to the scatter plot
-        cmap = plt.cm.get_cmap("gist_rainbow")
+        cmap = plt.cm.get_cmap('jet_r')
         clb = plt.colorbar(sc, label=r'$\mathdefault{\bar{n}_e}$, $\mathdefault{10^{19}}$ $\mathdefault{м^{-3}}$')
         norm = matplotlib.colors.Normalize(vmin=min(df['ne']), vmax=max(df['ne']), clip=True)
-        mapper = cm.ScalarMappable(norm=norm, cmap='viridis')
+        mapper = cm.ScalarMappable(norm=norm, cmap=cmap)
         time_color = np.array([(mapper.to_rgba(v)) for v in df['ne']])
         
         #loop over each data point to plot
-        for x1, y1, e, color in zip(x, y, error, time_color):
+        for x1, y1, color in zip(x, y, time_color):
             dots = plt.plot(x1, y1, 'o', color=color)
-            plt.errorbar(x1, y1, yerr=e, lw=1, capsize=3, color=color)
+            plt.errorbar(x1, y1, yerr=0.05, lw=1, capsize=3, color=color)
             plt.errorbar(x1, y1, xerr=1, lw=1, capsize=3, color=color)
             
             cursor = mplcursors.cursor(dots, highlight=True, multiple=True)
+        plt.set_cmap(cmap)
 
     # Plot parameters
     

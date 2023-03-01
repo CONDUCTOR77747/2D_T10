@@ -6,7 +6,8 @@ Created on Tue Mar 12 10:29:55 2019
 """
 import numpy as np
 import math
-from matplotlib import cm
+import matplotlib
+import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 from scipy import interpolate
 import import_data as imd
@@ -102,7 +103,7 @@ sort_zd_flag = 1
 z_min_val, z_max_val = -0.75, 0.75 # Zd filter (mask)
 
 phi_profiles_flag = 1
-phi_profiles_mode = 'ne_colorbar' #time_intervals, shots, ebeams
+phi_profiles_mode = 'colorbar' # mono, time_intervals, shots, ebeams
 
 slit = imd.slit
 # %% Import Data
@@ -377,7 +378,6 @@ plt.rcParams['axes.grid.axis'] = "both"
 #%% Plot Phi profiles
 if phi_profiles_flag:
     fig, ax_phi_prof = plt.subplots()
-    lines = []
     
     if phi_profiles_mode == "mono":
     
@@ -394,8 +394,7 @@ if phi_profiles_flag:
                     label=f'Shot: {0}\nE: {energies[i]}\nTI: {0}\nne: {0}')
     
     
-    if phi_profiles_mode == "ne_colorbar":   
-        cm = plt.cm.get_cmap('jet')
+    if phi_profiles_mode == "colorbar":  
     
         x = df['rho']
         
@@ -403,34 +402,25 @@ if phi_profiles_flag:
         
         error = np.ones(len(x))*0.05
         
-    #     line = ax_phi_prof.errorbar(x, 
-    #                                 y, 
-    #                                 xerr=0.5, yerr=0.05, fmt='o',
-    #                                 ecolor='gray', elinewidth=0.5, capsize=4, 
-    #                                 capthick=0.5,
-    # label=f'Shot: {shots[i]}\nE: {energies[i]}\nTI: {0}\nne: {0}')
-        
         sc = plt.scatter(x,y,s=0,c=df['ne'])
     
-    #create colorbar according to the scatter plot
-        clb = plt.colorbar(sc)
-        
-        import matplotlib
-        import matplotlib.cm as cm
+        #create colorbar according to the scatter plot
+        cmap = plt.cm.get_cmap("gist_rainbow")
+        clb = plt.colorbar(sc, label=r'$\mathdefault{\bar{n}_e}$, $\mathdefault{10^{19}}$ $\mathdefault{м^{-3}}$')
         norm = matplotlib.colors.Normalize(vmin=min(df['ne']), vmax=max(df['ne']), clip=True)
         mapper = cm.ScalarMappable(norm=norm, cmap='viridis')
         time_color = np.array([(mapper.to_rgba(v)) for v in df['ne']])
         
         #loop over each data point to plot
         for x1, y1, e, color in zip(x, y, error, time_color):
-            plt.plot(x1, y1, 'o', color=color)
-            plt.errorbar(x1, y1, e, lw=1, capsize=3, color=color)
+            dots = plt.plot(x1, y1, 'o', color=color)
+            plt.errorbar(x1, y1, yerr=e, lw=1, capsize=3, color=color)
+            plt.errorbar(x1, y1, xerr=1, lw=1, capsize=3, color=color)
             
-            cursor = mplcursors.cursor(lines, highlight=True, multiple=True)
-    
+            cursor = mplcursors.cursor(dots, highlight=True, multiple=True)
+
     # Plot parameters
     
-    text_size = 35
     ax_phi_prof.tick_params(axis='both', labelsize=text_size)
     ax_phi_prof.grid()
     #ax_phi_prof.set_xlim(7, 35)

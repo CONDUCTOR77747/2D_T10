@@ -11,71 +11,76 @@ from os.path import exists
 from hibpsig import signal
 #%% Data and pathes
 
-# B22_I230_ABC (allec)
-#1 CreateList
-# path_CreateList_save_lists = 'Lists\\'
-# path_CreateList_save_2dmaps_lists = 'lists\\2dmaps\\T10_B22_I230\\allec\\allec.txt'
+mode = "OH"
 
-# #2 2d_t10
-# path_2d_t10_load = path_CreateList_save_2dmaps_lists
-# path_2d_t10_save = 'lists\\2dmaps\\T10_B22_I230\\allec\\sorted\\allec.txt'
-# path_2d_t10_save_obj = 'objects\\T10_B22_I230\\allec\\'
+if mode == "allec":
+    # B22_I230_ABC (allec)
+    #1 CreateList
+    path_CreateList_save_lists = 'Lists\\'
+    path_CreateList_save_2dmaps_lists = 'lists\\2dmaps\\T10_B22_I230\\allec\\allec.txt'
+    
+    #2 2d_t10
+    path_2d_t10_load = path_CreateList_save_2dmaps_lists
+    path_2d_t10_save = 'lists\\2dmaps\\T10_B22_I230\\allec\\sorted\\allec.txt'
+    path_2d_t10_save_obj = 'objects\\T10_B22_I230\\allec\\'
+    
+    #3 Phi_profiles
+    path_phi_profiles_list = path_2d_t10_save
+    path_phi_profiles_list_outside_the_polygon = 'lists\\2dmaps\\T10_B22_I230\\allec\\sorted\\allec_otp.txt'
+    path_phi_profiles_save_obj = 'objects\\T10_B22_I230\\allec\\Phi_profiles\\'
+    path_phi_profiles_save_origin = 'lists\\2dmaps\\T10_B22_I230\\allec\\phi_profiles.dat'
+    path_phi_profiles_save_multicarpet = 'lists\\2dmaps\\T10_B22_I230\\allec\\'
+    
+    #4 Plot_carpets
+    path_plot_carpets_list = path_phi_profiles_list
+    path_plot_carpets_save_obj = "objects\\T10_B22_I230\\allec\\Plot_carpets\\"
+    path_plot_carpets_save_img = "lists\\2dmaps\\T10_B22_I230\\allec\\carpets\\"
 
-# #3 Phi_profiles
-# path_phi_profiles_list = path_2d_t10_save
-# path_phi_profiles_list_outside_the_polygon = 'lists\\2dmaps\\T10_B22_I230\\allec\\sorted\\allec_otp.txt'
-# path_phi_profiles_save_obj = 'objects\\T10_B22_I230\\allec\\Phi_profiles\\'
-# path_phi_profiles_save_origin = 'lists\\2dmaps\\T10_B22_I230\\allec\\phi_profiles.dat'
-# path_phi_profiles_save_multicarpet = 'lists\\2dmaps\\T10_B22_I230\\allec\\'
-
-# #4 Plot_carpets
-# path_plot_carpets_list = path_phi_profiles_list
-# path_plot_carpets_save_obj = "objects\\T10_B22_I230\\allec\\Plot_carpets\\"
-# path_plot_carpets_save_img = "lists\\2dmaps\\T10_B22_I230\\allec\\carpets\\"
-
-# B22_I230_AC (offax)
-#1 CreateList
-# path_CreateList_save_lists = 'Lists\\'
-# path_CreateList_save_2dmaps_lists = 'lists\\2dmaps\\T10_B22_I230\\offax\\offax.txt'
-
-# #2 2d_t10
-# path_2d_t10_load = path_CreateList_save_2dmaps_lists
-# path_2d_t10_save = 'lists\\2dmaps\\T10_B22_I230\\offax\\sorted\\offax.txt'
-# path_2d_t10_save_obj = 'objects\\T10_B22_I230\\offax\\'
-
-# #3 Phi_profiles
-# path_phi_profiles_list = path_2d_t10_save
-# path_phi_profiles_list_outside_the_polygon = 'lists\\2dmaps\\T10_B22_I230\\offax\\sorted\\offax_otp.txt'
-# path_phi_profiles_save_obj = 'objects\\T10_B22_I230\\offax\\Phi_profiles\\'
-# path_phi_profiles_save_origin = 'lists\\2dmaps\\T10_B22_I230\\offax\\phi_profiles.dat'
-# path_phi_profiles_save_multicarpet = 'lists\\2dmaps\\T10_B22_I230\\offax\\'
-
-# #4 Plot_carpets
-# path_plot_carpets_list = path_phi_profiles_list
-# path_plot_carpets_save_obj = "objects\\T10_B22_I230\\offax\\Plot_carpets\\"
-# path_plot_carpets_save_img = "lists\\2dmaps\\T10_B22_I230\\offax\\carpets\\"
-
-# B22_I230_OH
-#1 CreateList
-path_CreateList_save_lists = 'Lists\\'
-path_CreateList_save_2dmaps_lists = 'lists\\2dmaps\\T10_B22_I230\\OH\\OH.txt'
-
-#2 2d_t10
-path_2d_t10_load = path_CreateList_save_2dmaps_lists
-path_2d_t10_save = 'lists\\2dmaps\\T10_B22_I230\\OH\\sorted\\OH.txt'
-path_2d_t10_save_obj = 'objects\\T10_B22_I230\\OH\\'
-
-#3 Phi_profiles
-path_phi_profiles_list = path_2d_t10_save
-path_phi_profiles_list_outside_the_polygon = 'lists\\2dmaps\\T10_B22_I230\\OH\\sorted\\OH_otp.txt'
-path_phi_profiles_save_obj = 'objects\\T10_B22_I230\\OH\\Phi_profiles\\'
-path_phi_profiles_save_origin = 'lists\\2dmaps\\T10_B22_I230\\OH\\phi_profiles.dat'
-path_phi_profiles_save_multicarpet = 'lists\\2dmaps\\T10_B22_I230\\OH\\'
-
-#4 Plot_carpets
-path_plot_carpets_list = path_phi_profiles_list
-path_plot_carpets_save_obj = "objects\\T10_B22_I230\\OH\\Plot_carpets\\"
-path_plot_carpets_save_img = "lists\\2dmaps\\T10_B22_I230\\OH\\carpets\\"
+elif mode == "offax":
+    # B22_I230_AC (offax)
+    #1 CreateList
+    path_CreateList_save_lists = 'Lists\\'
+    path_CreateList_save_2dmaps_lists = 'lists\\2dmaps\\T10_B22_I230\\offax\\offax.txt'
+    
+    #2 2d_t10
+    path_2d_t10_load = path_CreateList_save_2dmaps_lists
+    path_2d_t10_save = 'lists\\2dmaps\\T10_B22_I230\\offax\\sorted\\offax.txt'
+    path_2d_t10_save_obj = 'objects\\T10_B22_I230\\offax\\'
+    
+    #3 Phi_profiles
+    path_phi_profiles_list = path_2d_t10_save
+    path_phi_profiles_list_outside_the_polygon = 'lists\\2dmaps\\T10_B22_I230\\offax\\sorted\\offax_otp.txt'
+    path_phi_profiles_save_obj = 'objects\\T10_B22_I230\\offax\\Phi_profiles\\'
+    path_phi_profiles_save_origin = 'lists\\2dmaps\\T10_B22_I230\\offax\\phi_profiles.dat'
+    path_phi_profiles_save_multicarpet = 'lists\\2dmaps\\T10_B22_I230\\offax\\'
+    
+    #4 Plot_carpets
+    path_plot_carpets_list = path_phi_profiles_list
+    path_plot_carpets_save_obj = "objects\\T10_B22_I230\\offax\\Plot_carpets\\"
+    path_plot_carpets_save_img = "lists\\2dmaps\\T10_B22_I230\\offax\\carpets\\"
+    
+elif mode == "OH":
+    # B22_I230_OH
+    #1 CreateList
+    path_CreateList_save_lists = 'Lists\\'
+    path_CreateList_save_2dmaps_lists = 'lists\\2dmaps\\T10_B22_I230\\OH\\OH.txt'
+    
+    #2 2d_t10
+    path_2d_t10_load = path_CreateList_save_2dmaps_lists
+    path_2d_t10_save = 'lists\\2dmaps\\T10_B22_I230\\OH\\sorted\\OH.txt'
+    path_2d_t10_save_obj = 'objects\\T10_B22_I230\\OH\\'
+    
+    #3 Phi_profiles
+    path_phi_profiles_list = path_2d_t10_save
+    path_phi_profiles_list_outside_the_polygon = 'lists\\2dmaps\\T10_B22_I230\\OH\\sorted\\OH_otp.txt'
+    path_phi_profiles_save_obj = 'objects\\T10_B22_I230\\OH\\Phi_profiles\\'
+    path_phi_profiles_save_origin = 'lists\\2dmaps\\T10_B22_I230\\OH\\phi_profiles.dat'
+    path_phi_profiles_save_multicarpet = 'lists\\2dmaps\\T10_B22_I230\\OH\\'
+    
+    #4 Plot_carpets
+    path_plot_carpets_list = path_phi_profiles_list
+    path_plot_carpets_save_obj = "objects\\T10_B22_I230\\OH\\Plot_carpets\\"
+    path_plot_carpets_save_img = "lists\\2dmaps\\T10_B22_I230\\OH\\carpets\\"
 
 # B22_I230 load radrefs
 def load_radrefs(shot, slit, ebeam, mode='signal'):

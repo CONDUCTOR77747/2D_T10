@@ -43,7 +43,7 @@ def get_signal(signal_name, df):
     Returns
     -------
     1d array of float64, string, float, float
-        Array with signal, signal title, colorbar min value, colorbar max value
+        Array with signal, signal 2de, colorbar min value, colorbar max value
 
     """
     if signal_name == "Phi":
@@ -88,25 +88,32 @@ elif mode == 2:
 
 path_save_list = imd.path_2d_t10_save
 path_obj = imd.path_2d_t10_save_obj
-
+slit = imd.slit
+#%% Parameters
+signal_name = 'Phi' # Phi PhiRaw RMSPhi Itot RMSItot RelRMSItot
 xy_eps = 0.3 # dots interceprion
 ne_eps = 0.2 #+-0.1
-interpolation_flag = 1
-show_dots_flag = 1
+
+twoD_plot_flag = 0
 show_title_flag = 0
+
+interpolation_flag = 1
+show_dots_flag = 0
+
 colorbar_flag = 1
 log_colorbar_flag = 0
-grid_flag = 0
+
+grid_flag = 1
+detector_line_monocolor = 0
+
 sort_ne_intdots_zd_flag = 1
-signal_name = 'Phi' # Phi PhiRaw RMSPhi Itot RMSItot RelRMSItot
-
 sort_zd_flag = 1
-z_min_val, z_max_val = -0.75, 0.75 # Zd filter (mask)
+z_min_val, z_max_val = -0.85, 0.85 # Zd filter (mask)
 
-phi_profiles_flag = 1
+phi_profiles_flag = 0
+phi_profiles_title_flag = 1
 phi_profiles_mode = 'colorbar' # mono, time_intervals, shots, ebeams
 
-slit = imd.slit
 # %% Import Data
 print('\nimporting data\n')
 print('slit: ', slit)
@@ -364,7 +371,7 @@ header=False, index=False, columns=['Shot', 'Ebeam', 'time_interval'])
 
 #%% Plotting
 
-text_size = 35
+text_size = 40
 
 plt.rcParams["font.family"] = "Times New Roman"
 plt.rcParams['axes.titlesize'] = text_size-27
@@ -374,6 +381,7 @@ plt.rcParams['ytick.labelsize'] = text_size
 plt.rcParams['legend.fontsize'] = text_size-5
 plt.rcParams['axes.linewidth'] = 2.0
 plt.rcParams['axes.grid.axis'] = "both"
+cbar_pad = 0.013 #0.1
 # sns.color_palette('Dark2')
 # plt.rcParams['figure.figsize'] = (5, 10)
 
@@ -405,7 +413,7 @@ if phi_profiles_flag:
         sc = plt.scatter(x,y,s=0,c=df['ne'])
     
         #create colorbar according to the scatter plot
-        cmap = plt.cm.get_cmap('jet_r')
+        cmap = plt.cm.get_cmap('viridis')
         clb = plt.colorbar(sc, label=r'$\mathdefault{\bar{n}_e}$, $\mathdefault{10^{19}}$ $\mathdefault{м^{-3}}$')
         norm = matplotlib.colors.Normalize(vmin=min(df['ne']), vmax=max(df['ne']), clip=True)
         mapper = cm.ScalarMappable(norm=norm, cmap=cmap)
@@ -434,6 +442,11 @@ if phi_profiles_flag:
     wspace=0.2)
     ax_phi_prof.set_xlabel('r, см', size=text_size)
     ax_phi_prof.set_ylabel(r'$\varphi$, кВ', size=text_size)
+    if phi_profiles_title_flag:
+        ne_min = round(np.min(df['ne']), 3)
+        ne_max = round(np.max(df['ne']), 3)
+        ne_mean = round(np.mean(df['ne']), 3)
+        ax_phi_prof.set_title(f'ne: avg: {ne_mean} ± {round((ne_max - ne_min)/2., 3)}; min: {ne_min}; max: {ne_max}', fontsize=text_size)
 
 #%% Grid Plot
 
@@ -452,125 +465,153 @@ def get_color(ebeam):
 
 set_of_energies = sorted(list(set(energies)))
 if grid_flag: 
-    for flag_grid_one_enegry in set_of_energies:
-        ebeams = []
-        texts = []
-        grouped = df_imported.groupby('time_interval')
-        for name in df['time_interval'].unique():
-            temp = grouped.get_group(name)
-            if flag_grid_one_enegry and int(temp['Ebeam'].unique()) == flag_grid_one_enegry: #need to delete
+    if detector_line_monocolor:
+        for flag_grid_one_enegry in set_of_energies:
+            ebeams = []
+            texts = []
+            grouped = df_imported.groupby('time_interval')
+            for name in df['time_interval'].unique():
+                temp = grouped.get_group(name)
+                if flag_grid_one_enegry and int(temp['Ebeam'].unique()) == flag_grid_one_enegry: #need to delete
+                    grid_plot = ax.plot(temp['x'].to_numpy(), temp['y'].to_numpy(), 
+                                        linewidth=7, solid_capstyle='round',
+                                        label='#{} {} keV'.format(int(temp['Shot'].unique()[0]), 
+                                                                  int(temp['Ebeam'].unique())), 
+                                        c = get_color(temp['Ebeam'].unique()[0])) #choose color
+                    texts.append(grid_plot)
+        
+            grouped = df_imported.groupby('Ebeam')
+            #pos = [-0.4,-0.5,-0.5,-0.0,-0.7,-0.5,-0.3,0,0,0.2,0.3,-0.1,-0.2,5]
+            for ebeam in df['Ebeam'].unique():
+                
+                temp = grouped.get_group(ebeam)
+                
+                if flag_grid_one_enegry and int(temp['Ebeam'].unique()) == flag_grid_one_enegry: #need to delete
+                    x = temp['x'].to_numpy()[np.argmin(temp['y'].to_numpy())] - 0 #+ pos[j]
+                    y = np.min(temp['y'].to_numpy()) - 3
+                    
+                    ax.annotate(text=str(temp['Ebeam'].unique()[0]), xy=(x, y), 
+                                fontsize=text_size-5, rotation=-60, weight='bold', 
+                                c=get_color(temp['Ebeam'].unique()[0]), 
+                                path_effects=[path_effects.Stroke(linewidth=1.75, foreground='black'),
+                                   path_effects.Normal()],
+                                bbox=dict(boxstyle="square", alpha=1, pad=0, color='white'))
+    else:
+        for flag_grid_one_enegry in set_of_energies:
+            ebeams = []
+            texts = []
+            grouped = df_imported.groupby('time_interval')
+            for name in df['time_interval'].unique():
+                temp = grouped.get_group(name)
                 grid_plot = ax.plot(temp['x'].to_numpy(), temp['y'].to_numpy(), 
                                     linewidth=7, solid_capstyle='round',
                                     label='#{} {} keV'.format(int(temp['Shot'].unique()[0]), 
-                                                              int(temp['Ebeam'].unique())), 
-                                    c = get_color(temp['Ebeam'].unique()[0])) #choose color
+                                                              int(temp['Ebeam'].unique()))) #choose color
                 texts.append(grid_plot)
-    
-        grouped = df_imported.groupby('Ebeam')
-        #pos = [-0.4,-0.5,-0.5,-0.0,-0.7,-0.5,-0.3,0,0,0.2,0.3,-0.1,-0.2,5]
-        for ebeam in df['Ebeam'].unique():
-            
-            temp = grouped.get_group(ebeam)
-            
-            if flag_grid_one_enegry and int(temp['Ebeam'].unique()) == flag_grid_one_enegry: #need to delete
+        
+            grouped = df_imported.groupby('Ebeam')
+            #pos = [-0.4,-0.5,-0.5,-0.0,-0.7,-0.5,-0.3,0,0,0.2,0.3,-0.1,-0.2,5]
+            for ebeam in df['Ebeam'].unique():
+                
+                temp = grouped.get_group(ebeam)
+                
                 x = temp['x'].to_numpy()[np.argmin(temp['y'].to_numpy())] - 0 #+ pos[j]
                 y = np.min(temp['y'].to_numpy()) - 3
-                
+                    
                 ax.annotate(text=str(temp['Ebeam'].unique()[0]), xy=(x, y), 
-                            fontsize=text_size-5, rotation=-60, weight='bold', 
-                            c=get_color(temp['Ebeam'].unique()[0]), 
+                            fontsize=text_size-5, rotation=-60, weight='bold',
                             path_effects=[path_effects.Stroke(linewidth=1.75, foreground='black'),
                                path_effects.Normal()],
                             bbox=dict(boxstyle="square", alpha=1, pad=0, color='white'))
-        
-    # plt.legend()
 #%% Interpolate dots and plot 2d map
-xmin=5
+xmin=3
 xmax=30
 ymin=-5
-ymax=15
-Npoints=50
+ymax=19
+Npoints=65
 
-sig, signal_title, min_val, max_val  = get_signal(signal_name, df)
-dots_color = sig #df['Ebeam'].to_numpy()
-# min_val = 180
-# max_val = 330
-
-cmap = plt.cm.get_cmap("gist_rainbow")
-
-if log_colorbar_flag == 0:
-    norm = cm.colors.Normalize(vmax=max_val, vmin=min_val)
-elif log_colorbar_flag == 1:
-    norm = cm.colors.LogNorm(vmin=0.005, vmax=0.5)
-
-x, y = np.linspace(xmin, xmax, Npoints), np.linspace(ymin, ymax, Npoints)
-x, y = np.meshgrid(x, y)
-
-grid = interpolate.griddata((df['x'].to_numpy(), df['y'].to_numpy()), sig, (x,y), method='linear')
-
-labels = []
-for i in range(len(df)):
-    str_shot = str(df['Shot'].to_numpy()[i])
-    str_Ebeam = str(df['Ebeam'].to_numpy()[i])
-    str_TI = str(df['time_interval'].to_numpy()[i])
-    str_ne = str(round(df['ne'].to_numpy()[i], 3))
-    str_Phi = str(round(df['Phi'].to_numpy()[i], 3))
-    str_x = str(round(df['x'].to_numpy()[i], 2))
-    str_y = str(round(df['y'].to_numpy()[i], 2))
-    str_RMSPhi = str(round(df['RMSPhi'].to_numpy()[i], 3))
-    str_Itot = str(round(df['Itot'].to_numpy()[i], 3))
-    str_RMSItot = str(round(df['RMSItot'].to_numpy()[i], 3))
-    str_RelRMSItot = str(round(df['RelRMSItot'].to_numpy()[i], 3))
-    str_Zd = str(round(df['Zd'].to_numpy()[i], 3))
-    str_RhoEval = str(round(np.sqrt((df['x'].to_numpy()[i])**2+(df['y'].to_numpy()[i])**2),3))
-    str_A2 = str(round(df['Ua2'].to_numpy()[i], 3))
-    if signal_name == 'Phi':
-        label = f'Shot: {str_shot}\nE: {str_Ebeam}\nTI: {str_TI}\nne: {str_ne}\n\
-Phi: {str_Phi}\nx = {str_x}\ny = {str_y}\nRho: {str_RhoEval}\nZd: {str_Zd}\n A2: {str_A2}'
-    elif signal_name == 'RMSPhi':
-        label = f'Shot: {str_shot}\nE: {str_Ebeam}\nTI: {str_TI}\nne: {str_ne}\n\
-RMSPhi: {str_RMSPhi}\nx = {str_x}\ny = {str_y}'
-    elif signal_name == 'Itot':
-        label = f'Shot: {str_shot}\nE: {str_Ebeam}\nTI: {str_TI}\nne: {str_ne}\n\
-Itot: {str_Itot}\nx = {str_x}\ny = {str_y}'
-    elif signal_name == 'RMSItot':
-        label = f'Shot: {str_shot}\nE: {str_Ebeam}\nTI: {str_TI}\nne: {str_ne}\n\
-RMSItot: {str_RMSItot}\nx = {str_x}\ny = {str_y}'
-    elif signal_name == 'RelRMSItot':
-        label = f'Shot: {str_shot}\nE: {str_Ebeam}\nTI: {str_TI}\nne: {str_ne}\n\
-RelRMSItot: {str_RelRMSItot}\nx = {str_x}\ny = {str_y}'
-    labels.append(label)
-
-if log_colorbar_flag:
-    sc = ax.scatter(df['x'].to_numpy(), df['y'].to_numpy(), c=dots_color, norm=norm,
-                s=100, cmap=cmap, edgecolors='black')
-else:
-    sc = ax.scatter(df['x'].to_numpy(), df['y'].to_numpy(), c=dots_color, vmin=min_val, vmax=max_val,
-                s=100*show_dots_flag, cmap=cmap, edgecolors='black')
-        
+if twoD_plot_flag:
     
-#%%
-mplcursors.cursor(ax).connect(
-    "add", lambda sel: sel.annotation.set_text(labels[sel.index]))
-
-if interpolation_flag:
-    ax.imshow(grid, interpolation='none',
-                origin='lower',
-                extent=[xmin, xmax, ymin, ymax],
-                norm=norm, cmap=cmap)
-    # ax.contourf(grid, interpolation='none',
-    #             origin='lower',
-    #             extent=[xmin, xmax, ymin, ymax],
-    #             norm=norm, cmap=cmap)
-
-if colorbar_flag:
-    cbar = plt.colorbar(sc, ax=ax)
-    cbar.set_label(label=signal_title, size=text_size)
-    cbar.ax.tick_params(labelsize=text_size)
-
-str_ne_mean = str(round(ne_mean, 3))
-if show_title_flag:
-    ax.set_title(str(len(df)) + f' dots; ne: {str_ne_mean} ± {ne_eps}', fontsize=text_size)
+    sig, signal_title, min_val, max_val  = get_signal(signal_name, df)
+    dots_color = sig #df['Ebeam'].to_numpy()
+    # min_val = 180
+    # max_val = 330
+    
+    cmap = plt.cm.get_cmap("jet")
+    
+    if log_colorbar_flag == 0:
+        norm = cm.colors.Normalize(vmax=max_val, vmin=min_val)
+    elif log_colorbar_flag == 1:
+        norm = cm.colors.LogNorm(vmin=0.005, vmax=0.5)
+    
+    x, y = np.linspace(xmin, xmax, Npoints), np.linspace(ymin, ymax, Npoints)
+    x, y = np.meshgrid(x, y)
+    
+    grid = interpolate.griddata((df['x'].to_numpy(), df['y'].to_numpy()), sig, (x,y), method='cubic')
+    
+    labels = []
+    for i in range(len(df)):
+        str_shot = str(df['Shot'].to_numpy()[i])
+        str_Ebeam = str(df['Ebeam'].to_numpy()[i])
+        str_TI = str(df['time_interval'].to_numpy()[i])
+        str_ne = str(round(df['ne'].to_numpy()[i], 3))
+        str_Phi = str(round(df['Phi'].to_numpy()[i], 3))
+        str_x = str(round(df['x'].to_numpy()[i], 2))
+        str_y = str(round(df['y'].to_numpy()[i], 2))
+        str_RMSPhi = str(round(df['RMSPhi'].to_numpy()[i], 3))
+        str_Itot = str(round(df['Itot'].to_numpy()[i], 3))
+        str_RMSItot = str(round(df['RMSItot'].to_numpy()[i], 3))
+        str_RelRMSItot = str(round(df['RelRMSItot'].to_numpy()[i], 3))
+        str_Zd = str(round(df['Zd'].to_numpy()[i], 3))
+        str_RhoEval = str(round(np.sqrt((df['x'].to_numpy()[i])**2+(df['y'].to_numpy()[i])**2),3))
+        str_A2 = str(round(df['Ua2'].to_numpy()[i], 3))
+        if signal_name == 'Phi':
+            label = f'Shot: {str_shot}\nE: {str_Ebeam}\nTI: {str_TI}\nne: {str_ne}\n\
+    Phi: {str_Phi}\nx = {str_x}\ny = {str_y}\nRho: {str_RhoEval}\nZd: {str_Zd}\n A2: {str_A2}'
+        elif signal_name == 'RMSPhi':
+            label = f'Shot: {str_shot}\nE: {str_Ebeam}\nTI: {str_TI}\nne: {str_ne}\n\
+    RMSPhi: {str_RMSPhi}\nx = {str_x}\ny = {str_y}'
+        elif signal_name == 'Itot':
+            label = f'Shot: {str_shot}\nE: {str_Ebeam}\nTI: {str_TI}\nne: {str_ne}\n\
+    Itot: {str_Itot}\nx = {str_x}\ny = {str_y}'
+        elif signal_name == 'RMSItot':
+            label = f'Shot: {str_shot}\nE: {str_Ebeam}\nTI: {str_TI}\nne: {str_ne}\n\
+    RMSItot: {str_RMSItot}\nx = {str_x}\ny = {str_y}'
+        elif signal_name == 'RelRMSItot':
+            label = f'Shot: {str_shot}\nE: {str_Ebeam}\nTI: {str_TI}\nne: {str_ne}\n\
+    RelRMSItot: {str_RelRMSItot}\nx = {str_x}\ny = {str_y}'
+        labels.append(label)
+    
+    if log_colorbar_flag:
+        sc = ax.scatter(df['x'].to_numpy(), df['y'].to_numpy(), c=dots_color, norm=norm,
+                    s=100, cmap=cmap, edgecolors='black')
+    else:
+        sc = ax.scatter(df['x'].to_numpy(), df['y'].to_numpy(), c=dots_color, vmin=min_val, vmax=max_val,
+                    s=100*show_dots_flag, cmap=cmap, edgecolors='black')
+            
+        
+    #%%
+    mplcursors.cursor(ax).connect(
+        "add", lambda sel: sel.annotation.set_text(labels[sel.index]))
+    
+    if interpolation_flag:
+        ax.imshow(grid, interpolation='none',
+                    origin='lower',
+                    extent=[xmin, xmax, ymin, ymax],
+                    norm=norm, cmap=cmap)
+        # ax.contourf(grid, interpolation='none',
+        #             origin='lower',
+        #             extent=[xmin, xmax, ymin, ymax],
+        #             norm=norm, cmap=cmap)
+    
+    if colorbar_flag:
+        cbar = plt.colorbar(sc, ax=ax, pad=cbar_pad)
+        cbar.set_label(label=signal_title, size=text_size)
+        cbar.ax.tick_params(labelsize=text_size)
+    
+    str_ne_mean = str(round(ne_mean, 3))
+    if show_title_flag:
+        ax.set_title(str(len(df)) + f' dots; ne: {str_ne_mean} ± {ne_eps}', fontsize=text_size)
 
 
 ax.set_aspect('equal', adjustable='box')

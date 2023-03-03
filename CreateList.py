@@ -57,7 +57,7 @@ def load_ebeam(shot, path):
 filename = imd.path_CreateList_save_2dmaps_lists
 path_save_lists = imd.path_CreateList_save_lists
 slit = imd.slit
-shot = 73197
+shot = 73191
 energy = load_ebeam(shot, imd.DAS_FILES_path)
 time_interval = ''
 radref = imd.load_radrefs(shot, slit, energy)

@@ -91,20 +91,20 @@ path_obj = imd.path_2d_t10_save_obj
 slit = imd.slit
 #%% Parameters
 signal_name = 'Phi' # Phi PhiRaw RMSPhi Itot RMSItot RelRMSItot
-xy_eps = 0.3 # dots interceprion
+xy_eps = 0.1895 # dots interceprion
 ne_eps = 0.2 #+-0.1
 
-twoD_plot_flag = 0
-show_title_flag = 0
+twoD_plot_flag = 1
+show_title_flag = 1
 
 interpolation_flag = 1
-show_dots_flag = 0
+show_dots_flag = 1
 
 colorbar_flag = 1
 log_colorbar_flag = 0
 
-grid_flag = 1
-detector_line_monocolor = 0
+grid_flag = 0
+detector_line_monocolor = 1
 
 sort_ne_intdots_zd_flag = 1
 sort_zd_flag = 1
@@ -123,7 +123,7 @@ print('shot list: ', path_load_list)
 amount_of_shots, shots, energies, time_intervals = imd.load_shots(path_load_list)
 
 # define result array
-res = np.zeros([0, 14])
+res = np.zeros([0, 18])
 
 # mode = 'loader' - load signals via SigView Loader AND pickle them to a file
 # mode = 'pickle' - load signals from pickled files path: objects/%shot%_file.obj or if there is not - load files
@@ -142,6 +142,10 @@ for i in range(len(shots)):
     RMSItot = imd.load_signals(mode, 'RMSItot', shots[i], slit, time_intervals[i], path_obj)
     RelRMSItot = imd.load_signals(mode, 'RelRMSItot', shots[i], slit, time_intervals[i], path_obj)
     Phi = imd.load_signals(mode, 'Phi', shots[i], slit, time_intervals[i], path_obj)
+    Phi1 = imd.load_signals(mode, 'Phi1', shots[i], slit, time_intervals[i], path_obj)
+    Phi2 = imd.load_signals(mode, 'Phi2', shots[i], slit, time_intervals[i], path_obj)
+    Phi4 = imd.load_signals(mode, 'Phi4', shots[i], slit, time_intervals[i], path_obj)
+    Phi5 = imd.load_signals(mode, 'Phi5', shots[i], slit, time_intervals[i], path_obj)
     RMSPhi = imd.load_signals(mode, 'RMSPhi', shots[i], slit, time_intervals[i], path_obj)
     Zd = imd.load_signals(mode, 'Zd', shots[i], slit, time_intervals[i], path_obj)
     
@@ -161,6 +165,18 @@ for i in range(len(shots)):
     # Interpolate data sets according to A2 points number
     Phi_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
                                       bin_mean(Phi.y[inds]),
+                                      bounds_error=False)
+    Phi1_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
+                                      bin_mean(Phi1.y[inds]),
+                                      bounds_error=False)
+    Phi2_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
+                                      bin_mean(Phi2.y[inds]),
+                                      bounds_error=False)
+    Phi4_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
+                                      bin_mean(Phi4.y[inds]),
+                                      bounds_error=False)
+    Phi5_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
+                                      bin_mean(Phi5.y[inds]),
                                       bounds_error=False)
     RMSPhi_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
                                           bin_mean(RMSPhi.y[inds]),
@@ -196,6 +212,8 @@ for i in range(len(shots)):
 
             res = np.append(res, [[shots[i], energies[i], time_intervals[i], 
                                    ne_mean, x, y, rho, Ua2, Phi_interp(Ua2),
+                                   Phi1_interp(Ua2),Phi2_interp(Ua2),
+                                   Phi4_interp(Ua2),Phi5_interp(Ua2),
                                   RMSPhi_interp(Ua2), Itot_interp(Ua2),
                                   RMSItot_interp(Ua2), RelRMSItot_interp(Ua2),
                                   Zd_interp(Ua2)]], axis=0)
@@ -213,11 +231,15 @@ df['y'] = res[:,5]
 df['rho'] = res[:,6]
 df['Ua2'] = res[:,7]
 df['Phi'] = res[:,8]
-df['RMSPhi'] = res[:,9]
-df['Itot'] = res[:,10]
-df['RMSItot'] = res[:,11]
-df['RelRMSItot'] = res[:,12]
-df['Zd'] = res[:,13]
+df['Phi1'] = res[:,9]
+df['Phi2'] = res[:,10]
+df['Phi4'] = res[:,11]
+df['Phi5'] = res[:,12]
+df['RMSPhi'] = res[:,13]
+df['Itot'] = res[:,14]
+df['RMSItot'] = res[:,15]
+df['RelRMSItot'] = res[:,16]
+df['Zd'] = res[:,17]
 # convert string to numeric data
 df['Ebeam'] = pd.to_numeric(df['Ebeam'])
 df['ne'] = pd.to_numeric(df['ne'])
@@ -226,6 +248,10 @@ df['y'] = pd.to_numeric(df['y'])
 df['rho'] = pd.to_numeric(df['rho'])
 df['Ua2'] = pd.to_numeric(df['Ua2'])
 df['Phi'] = pd.to_numeric(df['Phi'])
+df['Phi1'] = pd.to_numeric(df['Phi1'])
+df['Phi2'] = pd.to_numeric(df['Phi2'])
+df['Phi4'] = pd.to_numeric(df['Phi4'])
+df['Phi5'] = pd.to_numeric(df['Phi5'])
 df['RMSPhi'] = pd.to_numeric(df['RMSPhi'])
 df['Itot'] = pd.to_numeric(df['Itot'])
 df['RMSItot'] = pd.to_numeric(df['RMSItot'])
@@ -234,6 +260,11 @@ df['Zd'] = pd.to_numeric(df['Zd'])
 
 # save copy of raw data
 df_imported = copy.deepcopy(df)
+
+df = pd.melt(df, id_vars=['x','y', 'ne', 'Ebeam', 'Shot', 'time_interval', 'rho',
+                          'RMSPhi','Itot','RMSItot','RelRMSItot','Zd', 'Ua2'],
+                  value_vars=['Phi','Phi1','Phi2','Phi4','Phi5'],
+                  value_name='Phi')
 
 #%% Plot Background (T-10 Grid)
 # Import T-10 camera data
@@ -529,6 +560,12 @@ xmax=30
 ymin=-5
 ymax=19
 Npoints=65
+
+
+# df_melt = pd.melt(df, id_vars=['x','y', 'ne', 'Ebeam', 'Shot', 'time_interval', 'rho'], 
+#                   value_vars=['Phi','Phi1','Phi2','Phi4','Phi5'],
+#                   value_name='Phi_all')
+
 
 if twoD_plot_flag:
     

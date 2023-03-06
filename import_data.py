@@ -172,6 +172,25 @@ def get_signame(name, slit, time_interval, radref=''):
         return 'T10HIBP::Phi{' + slit + \
                      ', clean, noz, rar22, avg1111n11, G=2.8569, ' \
                      + time_interval + '}'
+    elif name == 'Phi1':
+        return 'T10HIBP::Phi{' + 'slit1' + \
+                     ', clean, noz, rar22, avg1111n11, G=2.8569, ' \
+                     + time_interval + '}'
+    
+    elif name == 'Phi2':
+        return 'T10HIBP::Phi{' + 'slit2' + \
+                     ', clean, noz, rar22, avg1111n11, G=2.8569, ' \
+                     + time_interval + '}'
+                     
+    elif name == 'Phi4':
+        return 'T10HIBP::Phi{' + 'slit4' + \
+                     ', clean, noz, rar22, avg1111n11, G=2.8569, ' \
+                     + time_interval + '}'
+    
+    elif name == 'Phi5':
+        return 'T10HIBP::Phi{' + 'slit5' + \
+                     ', clean, noz, rar22, avg1111n11, G=2.8569, ' \
+                     + time_interval + '}'
                      
     elif name == 'Zd':
          return 'T10HIBP::Zd{' + slit + ', avg333n11, rar22, brk, clean, noz, ' + \

@@ -98,7 +98,7 @@ twoD_plot_flag = 1
 show_title_flag = 1
 
 interpolation_flag = 1
-show_dots_flag = 1
+show_dots_flag = 0
 
 colorbar_flag = 1
 log_colorbar_flag = 0

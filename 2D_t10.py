@@ -91,11 +91,11 @@ path_obj = imd.path_2d_t10_save_obj
 slit = imd.slit
 #%% Parameters
 signal_name = 'Phi' # Phi PhiRaw RMSPhi Itot RMSItot RelRMSItot
-xy_eps = 0.3 # dots interceprion
-ne_eps = 0.2 #+-0.1
+xy_eps = 0.1895 # dots interceprion
+ne_eps = 0.1 #+-0.1
 
-twoD_plot_flag = 0
-show_title_flag = 0
+twoD_plot_flag = 1
+show_title_flag = 1
 
 interpolation_flag = 1
 show_dots_flag = 0
@@ -103,7 +103,7 @@ show_dots_flag = 0
 colorbar_flag = 1
 log_colorbar_flag = 0
 
-grid_flag = 1
+grid_flag = 0
 detector_line_monocolor = 0
 
 sort_ne_intdots_zd_flag = 1

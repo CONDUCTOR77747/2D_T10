@@ -60,7 +60,7 @@ def get_signal(signal_name, df):
 # check if two points intersects
 def xy_intersec(x1,y1,x2,y2,eps):
     dist = np.sqrt((x1-x2)**2 + (y1-y2)**2)
-    if dist <= eps:
+    if dist < eps:
         # print('Intersect')
         return True
     else:
@@ -91,14 +91,14 @@ path_obj = imd.path_2d_t10_save_obj
 slit = imd.slit
 #%% Parameters
 signal_name = 'Phi' # Phi PhiRaw RMSPhi Itot RMSItot RelRMSItot
-xy_eps = 0.1895 # dots interceprion
+xy_eps = 0.5 #0.1895 # dots interceprion
 ne_eps = 0.2 #+-0.1
 
-twoD_plot_flag = 1
-show_title_flag = 1
+twoD_plot_flag = 0
+show_title_flag = 0
 
-interpolation_flag = 1
-show_dots_flag = 0
+interpolation_flag = 0
+show_dots_flag = 1
 
 colorbar_flag = 1
 log_colorbar_flag = 0
@@ -110,8 +110,8 @@ sort_ne_intdots_zd_flag = 1
 sort_zd_flag = 1
 z_min_val, z_max_val = -0.85, 0.85 # Zd filter (mask)
 
-phi_profiles_flag = 0
-phi_profiles_title_flag = 1
+phi_profiles_flag = 1
+phi_profiles_title_flag = 0
 phi_profiles_mode = 'colorbar' # mono, time_intervals, shots, ebeams
 
 # %% Import Data

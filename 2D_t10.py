@@ -17,7 +17,7 @@ import sys
 import copy
 import matplotlib.patheffects as path_effects
 from shapely.geometry import LineString, Point
-import seaborn as sns
+from skimage import measure
 
 #%% Functions
 
@@ -95,10 +95,12 @@ xy_eps = 0.1895 # dots interceprion
 ne_eps = 0.1 #+-0.1
 
 twoD_plot_flag = 1
-show_title_flag = 1
+show_title_flag = 0
 
 interpolation_flag = 1
 show_dots_flag = 0
+
+equipotential_lines_flag = 1
 
 colorbar_flag = 1
 log_colorbar_flag = 0
@@ -548,6 +550,12 @@ if twoD_plot_flag:
     x, y = np.meshgrid(x, y)
     
     grid = interpolate.griddata((df['x'].to_numpy(), df['y'].to_numpy()), sig, (x,y), method='cubic')
+    
+    #Equipotential lines
+    if equipotential_lines_flag:
+        contour_levels = np.linspace(sig.min(), sig.max(), 50)
+        contours = plt.contour(x, y, grid, levels=contour_levels, colors='black')
+
     
     labels = []
     for i in range(len(df)):

@@ -142,66 +142,37 @@ def get_signame(name, slit, time_interval, radref=''):
 
     Parameters
     ----------
-    name : string
-        Signal name. Use: ne, Itot, Phi, Zd, ECRH, Radius, Ipl, A2, RMSPhi,
-        RMSItot, RelRMSItot.
-    slit : string
-        Slit number. Exxample: 'slit3'.
-    time_interval : string
-        Time intervals for signal
-        'fromXXX.XXtoXXX.XX'.
-    radref : string, optional
-        Path to radref. Only for Radius signal. The default is ''.
+    name : str
+        Signal name. Available names: 'ne', 'Itot', 'Phi', 'Zd', 'ECRH',
+        'Radius', 'Ipl', 'A2', 'RMSPhi', 'RMSItot', 'RelRMSItot'.
+    slit : str
+        Slit number in format 'slitX', where X is a digit.
+    time_interval : str
+        Time interval for the signal in format 'fromXXX.XXtoXXX.XX'.
+    radref : str, optional
+        Path to radref file. Required only for 'Radius' signal.
 
     Returns
     -------
-    string
-        Signal name for SigViewer (@Reonid Progs).
-        Example: 'T10HIBP::Itot{' + slit + ', avg333n11,, rar22, \
-                     clean, noz, ' + time_interval + '}''.
+    str
+        Signal name in SigViewer format.
 
     """
-    if name == 'ne':
-        return 'I.f8{x0.1333, z200, avg33,' + time_interval + '}'
-    
-    elif name == 'Itot':
-        return 'T10HIBP::Itot{' + slit + ', avg333n11,, rar22, \
-                     clean, noz, ' + time_interval + '}'
-    
-    elif name == 'Phi':
-        return 'T10HIBP::Phi{' + slit + \
-                     ', clean, noz, rar22, avg1111n11, G=2.8569, ' \
-                     + time_interval + '}'
-                     
-    elif name == 'Zd':
-         return 'T10HIBP::Zd{' + slit + ', avg333n11, rar22, brk, clean, noz, ' + \
-                       time_interval + '}'
+    signals = {
+        'ne': f'I.f8{{x0.1333, z200, avg33, {time_interval}}}',
+        'Itot': f'T10HIBP::Itot{{{slit}, avg333n11,, rar22, clean, noz, {time_interval}}}',
+        'Phi': f'T10HIBP::Phi{{{slit}, clean, noz, rar22, avg1111n11, G=2.8569, {time_interval}}}',
+        'Zd': f'T10HIBP::Zd{{{slit}, avg333n11, rar22, brk, clean, noz, {time_interval}}}',
+        'ECRH': 'I.EC{{x-1, z80, avg33}}',
+        'Radius': f'T10HIBP::Radius{{noz, avg1111, rar22, clean, {radref}, {time_interval}}}',
+        'Ipl': 'I.I{{avg33}}',
+        'A2': f'T10HIBP::A2{{{slit}, avg111, rar22, {time_interval}}}',
+        'RMSPhi': f'T10HIBP::Phi{{{slit}, rms1001, clean, noz, rar22, {time_interval}}}',
+        'RMSItot': f'T10HIBP::Itot{{{slit}, rms1001, rar22, clean, noz, {time_interval}}}',
+        'RelRMSItot': f'T10HIBP::Itot{{{slit}, relrms1001, rar22, clean, noz, {time_interval}}}'
+    }
 
-    elif name == 'ECRH':
-         return 'I.EC{x-1, z80, avg33}'
-     
-    elif name == 'Radius':
-         return 'T10HIBP::Radius{noz, avg1111, rar22, clean, \
-     ?' + radref + ',' + time_interval + '}'
-     
-    elif name == 'Ipl':
-         return 'I.I{avg33}'
-     
-    elif name == 'A2':
-         return 'T10HIBP::A2{' + slit + ', avg111, rar22, ' +\
-                         time_interval + '}'
-     
-    elif name == 'RMSPhi':
-         return 'T10HIBP::Phi{' + slit + ', rms1001, clean, noz, \
-                         rar22, ' + time_interval + '}'
-     
-    elif name == 'RMSItot':
-         return 'T10HIBP::Itot{' + slit + ', rms1001, rar22, \
-                          clean, noz, ' + time_interval + '}'
-     
-    elif name == 'RelRMSItot':
-         return 'T10HIBP::Itot{' + slit + ', relrms1001, rar22,\
-                             clean, noz, ' + time_interval + '}'
+    return signals[name]
 
 def pickle_obj(mode, path, sig=''):
     """

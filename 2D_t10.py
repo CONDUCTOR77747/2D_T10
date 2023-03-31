@@ -88,6 +88,7 @@ elif mode == 2:
 
 path_save_list = imd.path_2d_t10_save
 path_obj = imd.path_2d_t10_save_obj
+path_origin_save = imd.path_phi_profiles_save_origin
 slit = imd.slit
 #%% Parameters
 signal_name = 'Phi' # Phi PhiRaw RMSPhi Itot RMSItot RelRMSItot
@@ -95,7 +96,7 @@ xy_eps = 0.1895 # dots interceprion
 ne_eps = 0.1 #+-0.1
 
 twoD_plot_flag = 1
-show_title_flag = 0
+show_title_flag = 1
 
 interpolation_flag = 1
 show_dots_flag = 0
@@ -109,12 +110,14 @@ grid_flag = 0
 detector_line_monocolor = 0
 
 sort_ne_intdots_zd_flag = 1
+intdots_flag = 1
 sort_zd_flag = 1
 z_min_val, z_max_val = -0.85, 0.85 # Zd filter (mask)
 
-phi_profiles_flag = 0
+phi_profiles_flag = 1
 phi_profiles_title_flag = 1
-phi_profiles_mode = 'colorbar' # mono, time_intervals, shots, ebeams
+phi_profiles_save_origin_flag = 1
+phi_profiles_mode = 'mono' # mono, time_intervals, shots, ebeams
 
 # %% Import Data
 print('\nimporting data\n')
@@ -327,38 +330,39 @@ if sort_ne_intdots_zd_flag:
     df = dataframe_collection_ne[n_range[df_index]]
     ne_mean = df['ne'].mean()
     #%% delete interceprions between dots
-    list_ebeam = sorted(list(set(df['Ebeam'])))
-    dataframe_collection_ebeam = {}
-    dataframe_collection_ebeam_dropped = {}
-    counter = 0
-    for ebeam in list_ebeam:
-        df_basket_E = df[df['Ebeam'] == ebeam]
-        dataframe_collection_ebeam[ebeam] = df_basket_E
-        df_len = len(df_basket_E)
-        print(f'{[counter]} E: {ebeam}, len = {df_len}',)
-        counter = counter + 1
-    
-    print(f'Total {len(df)} dots.')
-    
-    for ebeam in list_ebeam:
-        list_dropped = []
-    
-        df = dataframe_collection_ebeam[ebeam]
-        for i in df.index:
-            for j in df.index:
-                if i != j and (i not in list_dropped) and (j not in list_dropped):
-                    if xy_intersec(df['x'].loc[i], df['y'].loc[i], 
-                                  df['x'].loc[j], df['y'].loc[j], xy_eps):
-                        if abs(ne_mean-df['ne'].loc[i]) <= abs(ne_mean-df['ne'].loc[j]):
-                            list_dropped.append(j)
-                        else:
-                            list_dropped.append(i)
-    
-        df_dropped = df.drop(list_dropped)
-        dataframe_collection_ebeam_dropped[ebeam] = df_dropped
-    
-    df = pd.concat(dataframe_collection_ebeam_dropped)
-    print(f'Sorted by n and E. Total {len(df)} dots.')
+    if intdots_flag:
+        list_ebeam = sorted(list(set(df['Ebeam'])))
+        dataframe_collection_ebeam = {}
+        dataframe_collection_ebeam_dropped = {}
+        counter = 0
+        for ebeam in list_ebeam:
+            df_basket_E = df[df['Ebeam'] == ebeam]
+            dataframe_collection_ebeam[ebeam] = df_basket_E
+            df_len = len(df_basket_E)
+            print(f'{[counter]} E: {ebeam}, len = {df_len}',)
+            counter = counter + 1
+        
+        print(f'Total {len(df)} dots.')
+        
+        for ebeam in list_ebeam:
+            list_dropped = []
+        
+            df = dataframe_collection_ebeam[ebeam]
+            for i in df.index:
+                for j in df.index:
+                    if i != j and (i not in list_dropped) and (j not in list_dropped):
+                        if xy_intersec(df['x'].loc[i], df['y'].loc[i], 
+                                      df['x'].loc[j], df['y'].loc[j], xy_eps):
+                            if abs(ne_mean-df['ne'].loc[i]) <= abs(ne_mean-df['ne'].loc[j]):
+                                list_dropped.append(j)
+                            else:
+                                list_dropped.append(i)
+        
+            df_dropped = df.drop(list_dropped)
+            dataframe_collection_ebeam_dropped[ebeam] = df_dropped
+        
+        df = pd.concat(dataframe_collection_ebeam_dropped)
+        print(f'Sorted by n and E. Total {len(df)} dots.')
 
     #%% Z mask
     if sort_zd_flag:
@@ -402,8 +406,8 @@ if phi_profiles_flag:
                                         y, 
                                         xerr=0.5, yerr=0.05, fmt='o',
                                         ecolor='gray', elinewidth=0.5, capsize=4, 
-                                        capthick=0.5,
-                    label=f'Shot: {0}\nE: {energies[i]}\nTI: {0}\nne: {0}')
+                                        capthick=0.5, mfc='black', mec='black')
+                    # label=f'Shot: {0}\nE: {energies[i]}\nTI: {0}\nne: {0}')
     
     
     if phi_profiles_mode == "colorbar":  
@@ -449,6 +453,13 @@ if phi_profiles_flag:
         ne_max = round(np.max(df['ne']), 3)
         ne_mean = round(np.mean(df['ne']), 3)
         ax_phi_prof.set_title(f'ne: avg: {ne_mean} ± {round((ne_max - ne_min)/2., 3)}; min: {ne_min}; max: {ne_max}', fontsize=text_size)
+        
+    if phi_profiles_save_origin_flag:
+        df_phi_profiles_origin_save = pd.DataFrame()
+        df_phi_profiles_origin_save['Rho'] = x
+        df_phi_profiles_origin_save['Phi'] = y
+        df_phi_profiles_origin_save.to_csv(path_origin_save, index=False, sep='\t')
+        print(f'Saved to Origin: {path_origin_save}')
 
 #%% Grid Plot
 
@@ -539,7 +550,7 @@ if twoD_plot_flag:
     # min_val = 180
     # max_val = 330
     
-    cmap = plt.cm.get_cmap("jet")
+    cmap = plt.cm.get_cmap("jet") #rainbow
     
     if log_colorbar_flag == 0:
         norm = cm.colors.Normalize(vmax=max_val, vmin=min_val)
@@ -553,8 +564,11 @@ if twoD_plot_flag:
     
     #Equipotential lines
     if equipotential_lines_flag:
-        contour_levels = np.linspace(sig.min(), sig.max(), 50)
-        contours = plt.contour(x, y, grid, levels=contour_levels, colors='black')
+        contour_levels = np.linspace(sig.min(), sig.max(), 8)
+        contour_levels = [-1.50971682,  -1.26346023,  -1.01720365,  -0.77094706, -0.52469048, -0.27843389]
+        # [   ,
+               # ,  0.21407928]
+        contours = ax.contour(x, y, grid, levels=contour_levels, colors='black')
 
     
     labels = []

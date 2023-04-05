@@ -13,6 +13,7 @@ from scipy import interpolate
 import import_data as imd
 import pandas as pd
 import mplcursors
+import colorsys
 import sys
 import copy
 import matplotlib.patheffects as path_effects
@@ -95,19 +96,21 @@ signal_name = 'Phi' # Phi PhiRaw RMSPhi Itot RMSItot RelRMSItot
 xy_eps = 0.1895 # dots interceprion
 ne_eps = 0.1 #+-0.1
 
-twoD_plot_flag = 1
-show_title_flag = 1
+twoD_plot_flag = 0
+show_title_flag = 0
 
-interpolation_flag = 1
-show_dots_flag = 0
+interpolation_flag = 0
+show_dots_flag = 1
 
-equipotential_lines_flag = 1
+equipotential_lines_flag = 0
 
 colorbar_flag = 1
 log_colorbar_flag = 0
 
-grid_flag = 0
-detector_line_monocolor = 0
+grid_flag = 1
+detector_line_mode = "mono" #mono #color #rainbow
+grid_annotate_flag = 1 # for #mono #color
+grid_rainbow_threshold = 2 #for rainbow connecting dots range is about 0-10 (approximately)
 
 sort_ne_intdots_zd_flag = 1
 intdots_flag = 1
@@ -463,6 +466,66 @@ if phi_profiles_flag:
 
 #%% Grid Plot
 
+
+def plot_lines(df, ebeam, threshold, cmap='jet', ax=None):
+    # Get the data for the current Ebeam value
+    x = df.loc[df['Ebeam'] == ebeam]['x'].values
+    y = df.loc[df['Ebeam'] == ebeam]['y'].values
+    color = df.loc[df['Ebeam'] == ebeam]['Phi'].values
+
+    # Plot the data using the plot_colormap function
+    plot_colormap(x, y, color, cmap=cmap, ax=ax, threshold=threshold)
+
+
+def plot_colormap(x, y, color, cmap='jet', ax=None, threshold=None):
+    """
+    Plot a line using a custom colormap.
+
+    Arguments:
+    - x: array-like. The x-coordinates of the data to plot.
+    - y: array-like. The y-coordinates of the data to plot.
+    - color: array-like. The colors to use for each point in the data.
+    - cmap: string. The name of the colormap to use (default is 'jet').
+    - ax: matplotlib Axes object. The axis to plot on (default is None, which creates a new axis).
+    - threshold: float or None. The threshold distance between adjacent points below which they will be connected (default is None, which means all points will be plotted as separate dots).
+    """
+
+    sig, signal_title, min_val, max_val  = get_signal(signal_name, df)
+    
+    norm = cm.colors.Normalize(vmax=max_val, vmin=min_val)
+
+    # Normalize color values to range [0, 1]
+    # norm = plt.Normalize(color.min(), color.max())
+
+    # Create the colormap
+    colormap = plt.cm.get_cmap(cmap)
+
+    # Create a color map index based on the normalized color values
+    color_index = np.array(norm(color))
+
+    # Plot the data using a colormap
+    if ax is None:
+        fig, ax = plt.subplots()
+    if threshold is not None:
+        for i in range(len(x) - 1):
+            if np.abs(x[i+1]-x[i]) < threshold and np.abs(y[i+1]-y[i]) < threshold:
+                line,=ax.plot([x[i], x[i + 1]], [y[i], y[i + 1]], color=colormap(color_index[i]),
+                        linewidth=10)
+                line.set_solid_capstyle('round')
+    else:
+        ax.scatter(x, y, c=colormap(color_index))
+    ax.set_xlim([x.min(), x.max()])
+    ax.set_ylim([y.min(), y.max()])
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+
+    # Add a colorbar
+    # if ax is None:
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cbar = plt.colorbar(sm, ax=ax)
+    cbar.set_label(signal_title)
+
 # get colors for plotting grid
 def get_color(ebeam):
     colors = []
@@ -478,7 +541,7 @@ def get_color(ebeam):
 
 set_of_energies = sorted(list(set(energies)))
 if grid_flag: 
-    if detector_line_monocolor:
+    if detector_line_mode == "mono":
         for flag_grid_one_enegry in set_of_energies:
             ebeams = []
             texts = []
@@ -503,13 +566,14 @@ if grid_flag:
                     x = temp['x'].to_numpy()[np.argmin(temp['y'].to_numpy())] - 0 #+ pos[j]
                     y = np.min(temp['y'].to_numpy()) - 3
                     
-                    ax.annotate(text=str(temp['Ebeam'].unique()[0]), xy=(x, y), 
-                                fontsize=text_size-5, rotation=-60, weight='bold', 
-                                c=get_color(temp['Ebeam'].unique()[0]), 
-                                path_effects=[path_effects.Stroke(linewidth=1.75, foreground='black'),
-                                   path_effects.Normal()],
-                                bbox=dict(boxstyle="square", alpha=1, pad=0, color='white'))
-    else:
+                    if grid_annotate_flag:
+                        ax.annotate(text=str(temp['Ebeam'].unique()[0]), xy=(x, y), 
+                                    fontsize=text_size-15, rotation=-60, weight='bold', 
+                                    c=get_color(temp['Ebeam'].unique()[0]), 
+                                    path_effects=[path_effects.Stroke(linewidth=1.75, foreground='black'),
+                                       path_effects.Normal()],
+                                    bbox=dict(boxstyle="square", alpha=1, pad=0, color='white'))
+    elif detector_line_mode == "color":
         for flag_grid_one_enegry in set_of_energies:
             ebeams = []
             texts = []
@@ -530,12 +594,26 @@ if grid_flag:
                 
                 x = temp['x'].to_numpy()[np.argmin(temp['y'].to_numpy())] - 0 #+ pos[j]
                 y = np.min(temp['y'].to_numpy()) - 3
-                    
-                ax.annotate(text=str(temp['Ebeam'].unique()[0]), xy=(x, y), 
-                            fontsize=text_size-5, rotation=-60, weight='bold',
-                            path_effects=[path_effects.Stroke(linewidth=1.75, foreground='black'),
-                               path_effects.Normal()],
-                            bbox=dict(boxstyle="square", alpha=1, pad=0, color='white'))
+                
+                if grid_annotate_flag:
+                    ax.annotate(text=str(temp['Ebeam'].unique()[0]), xy=(x, y), 
+                                fontsize=text_size-5, rotation=-60, weight='bold',
+                                path_effects=[path_effects.Stroke(linewidth=1.75, foreground='black'),
+                                   path_effects.Normal()],
+                                bbox=dict(boxstyle="square", alpha=1, pad=0, color='white'))
+                
+    elif detector_line_mode == "rainbow2":
+        
+        # Loop over unique Ebeam values and plot the lines separately for each Ebeam
+        for i, ebeam in enumerate(df['Ebeam'].unique()):
+            plot_lines(df, ebeam, grid_rainbow_threshold, cmap='jet', ax=ax)
+            
+    elif detector_line_mode == "rainbow":
+        
+        plot_colormap(df_imported['x'].to_numpy(), df_imported['y'].to_numpy(), df_imported['Phi'].to_numpy(),
+                      cmap='rainbow', ax=ax, threshold=grid_rainbow_threshold)
+
+        
 #%% Interpolate dots and plot 2d map
 xmin=3
 xmax=30
@@ -550,7 +628,7 @@ if twoD_plot_flag:
     # min_val = 180
     # max_val = 330
     
-    cmap = plt.cm.get_cmap("jet") #rainbow
+    cmap = plt.cm.get_cmap("rainbow")
     
     if log_colorbar_flag == 0:
         norm = cm.colors.Normalize(vmax=max_val, vmin=min_val)
@@ -565,10 +643,7 @@ if twoD_plot_flag:
     #Equipotential lines
     if equipotential_lines_flag:
         contour_levels = np.linspace(sig.min(), sig.max(), 8)
-        contour_levels = [-1.50971682,  -1.26346023,  -1.01720365,  -0.77094706, -0.52469048, -0.27843389]
-        # [   ,
-               # ,  0.21407928]
-        contours = ax.contour(x, y, grid, levels=contour_levels, colors='black')
+        contours = plt.contour(x, y, grid, levels=contour_levels, colors='black')
 
     
     labels = []

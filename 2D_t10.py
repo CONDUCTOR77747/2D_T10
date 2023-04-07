@@ -85,7 +85,7 @@ elif mode == 2:
     path_load_list = imd.path_2d_t10_load # load list without sort
     path_load_list_sorted = imd.path_2d_t10_save # load sorted list via ne and phi profiles
     save_flag = 0 # save data for phi profiles
-    histogramm_flag = 1
+    histogramm_flag = 0
 
 path_save_list = imd.path_2d_t10_save
 path_obj = imd.path_2d_t10_save_obj
@@ -99,7 +99,7 @@ twoD_plot_flag = 0
 show_title_flag = 0
 
 interpolation_flag = 0
-show_dots_flag = 1
+show_dots_flag = 0
 
 equipotential_lines_flag = 0
 
@@ -107,8 +107,13 @@ colorbar_flag = 1
 log_colorbar_flag = 0
 
 grid_flag = 1
-detector_line_mode = "mono" #mono #color #rainbow
-grid_annotate_flag = 1 # for #mono #color
+detector_line_mode = "one_energy" #mono #color #rainbow
+
+if detector_line_mode == "mono":
+    grid_annotate_flag = 1 # for #mono
+else:
+    grid_annotate_flag = 0 # for #rainbow #color
+    
 grid_rainbow_threshold = 2 #for rainbow connecting dots range is about 0-10 (approximately)
 
 sort_ne_intdots_zd_flag = 1
@@ -512,7 +517,7 @@ def plot_colormap(x, y, color, cmap='jet', ax=None, threshold=None):
     # if ax is None:
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
-    cbar = plt.colorbar(sm, ax=ax)
+    cbar = plt.colorbar(sm, ax=ax, pad=cbar_pad)
     cbar.set_label(signal_title)
 
 # get colors for plotting grid
@@ -529,7 +534,21 @@ def get_color(ebeam):
             return colors[n]
 
 set_of_energies = sorted(list(set(energies)))
-if grid_flag: 
+if grid_flag:
+    if detector_line_mode == "one_energy":
+        one_energy = 300
+        for flag_grid_one_energy in set_of_energies:
+            if flag_grid_one_energy == one_energy:  # plot only for energy = 300
+                ebeams = []
+                texts = []
+                grouped = df_imported.groupby('time_interval')
+                for name in df['time_interval'].unique():
+                    temp = grouped.get_group(name)
+                    if temp['Ebeam'].unique() == one_energy:  # plot only for Ebeam = 300
+                        grid_plot = ax.plot(temp['x'].to_numpy(), temp['y'].to_numpy(), 
+                                            linewidth=10, solid_capstyle='round', alpha=0.7,
+                                            label='#{} {} keV'.format(int(temp['Shot'].unique()[0]), 
+                                                                      int(temp['Ebeam'].unique()))) #choose color
     if detector_line_mode == "mono":
         for flag_grid_one_enegry in set_of_energies:
             ebeams = []
@@ -570,11 +589,11 @@ if grid_flag:
             for name in df['time_interval'].unique():
                 temp = grouped.get_group(name)
                 grid_plot = ax.plot(temp['x'].to_numpy(), temp['y'].to_numpy(), 
-                                    linewidth=7, solid_capstyle='round',
+                                    linewidth=7, solid_capstyle='round', alpha=0.5,
                                     label='#{} {} keV'.format(int(temp['Shot'].unique()[0]), 
                                                               int(temp['Ebeam'].unique()))) #choose color
                 texts.append(grid_plot)
-        
+        # annotation
             grouped = df_imported.groupby('Ebeam')
             #pos = [-0.4,-0.5,-0.5,-0.0,-0.7,-0.5,-0.3,0,0,0.2,0.3,-0.1,-0.2,5]
             for ebeam in df['Ebeam'].unique():
@@ -599,7 +618,7 @@ if grid_flag:
             
     elif detector_line_mode == "rainbow":
         
-        plot_colormap(df_imported['x'].to_numpy(), df_imported['y'].to_numpy(), df_imported['Phi'].to_numpy(),
+        plot_colormap(df['x'].to_numpy(), df['y'].to_numpy(), df['Phi'].to_numpy(),
                       cmap='rainbow', ax=ax, threshold=grid_rainbow_threshold)
 
         

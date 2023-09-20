@@ -19,6 +19,43 @@ import matplotlib.ticker as ticker
 from matplotlib import cm
 import re
 
+#%%
+def plot_carpet(shot, signal, time_interval):
+    
+    vmin = -100
+    vmax = -60
+    nfft = 2048
+    
+    fig1 = plt.figure(figsize=(10,5))
+    ax1 = fig1.add_subplot(211)
+    ax2 = fig1.add_subplot(212, sharex = ax1)
+    
+    ax1.set_title(shot)
+    ax1.plot(signal.x, signal.y, linewidth=0.1)
+    
+    spec = ax2.specgram(signal.y, Fs=1e6, NFFT = nfft, noverlap=int(nfft/2),  
+                        cmap = 'jet', scale = 'dB', mode='psd', xextent=(0,998.9), pad_to=nfft*2, vmin=vmin, vmax=vmax)
+    
+    ax1.axvspan(float(time_interval[0]), float(time_interval[1]), 
+                facecolor="magenta", edgecolor='black', linewidth=1, alpha=0.3, picker=5)
+    ax2.axvspan(float(time_interval[0]), float(time_interval[1]), 
+                facecolor="magenta", edgecolor='black', linewidth=1, alpha=0.3, picker=5)
+    
+    ti_center = float(time_interval[0]) + abs(float(time_interval[0]) - float(time_interval[1]))/2.
+    
+    def on_pick(event):
+        x_shift = 150
+        ax1.set_xlim(ti_center-x_shift, ti_center+x_shift)
+        ax2.set_ylim(0, 100000)
+        print('zoomed in')
+        fig1.canvas.draw()
+    
+    cid = fig1.canvas.mpl_connect('pick_event', on_pick)
+    
+    ax1.grid()
+    ax2.grid()
+    plt.show()
+
 # %% Import Data
 # PATH
 slit = imd.slit
@@ -70,52 +107,12 @@ for i in range(amount_of_shots):
     print('shot: #{}, E={}'.format(shots[i], energies[i]))
     print(f'time: {time_intervals[i]}')
     print('pickle: ', path_obj)
-    
-    list_Phi_x.append(PhiRaw.x)
-    list_Phi_y.append(PhiRaw.y)
-    # list_Rho_x.append(Radius.x)
-    # list_Rho_y.append(Radius.y)
 
 print('loaded: ', path_list)
-#%% plot spectrogramm
-vmin = -100
-vmax = -60
-nfft = 2048
-# i = 10
-shot = 73194
 
-for i in range(amount_of_shots):
-    # if flag_plot_only_first_carpet == 1 and i == 1:
-    # if shot == amount_of_shots[i]:
-        fig1 = plt.figure(figsize=(10,5))
-        ax1 = fig1.add_subplot(211)
-        ax2 = fig1.add_subplot(212, sharex = ax1)
-        
-        ax1.set_title(shots[i])
-        ax1.plot(list_Phi_x[i], list_Phi_y[i], linewidth=0.1)
-        
-        spec = ax2.specgram(list_Phi_y[i], Fs=1e6, NFFT = nfft, noverlap=nfft/2, 
-                            cmap = 'jet', scale = 'dB', mode='psd', xextent=(0,998.9), pad_to=nfft*2, vmin=vmin, vmax=vmax)
-        
-        pattern = r"\d\d\d\.\d\d"
-        list_time_interval = re.findall(pattern, time_intervals[i])
-        
-        ax1.axvspan(float(list_time_interval[0]), float(list_time_interval[1]), 
-                    facecolor="magenta", edgecolor='black', linewidth=1, alpha=0.3, picker=5)
-        ax2.axvspan(float(list_time_interval[0]), float(list_time_interval[1]), 
-                    facecolor="magenta", edgecolor='black', linewidth=1, alpha=0.3, picker=5)
-        
-        ti_center = float(list_time_interval[0]) + abs(float(list_time_interval[0]) - float(list_time_interval[1]))/2.
-        
-        def on_pick(event):
-            x_shift = 150
-            ax1.set_xlim(ti_center-x_shift, ti_center+x_shift)
-            ax2.set_ylim(0, 100000)
-            print('zoomed in')
-            fig1.canvas.draw()
-        
-        cid = fig1.canvas.mpl_connect('pick_event', on_pick)
-        
-        ax1.grid()
-        ax2.grid()
-        plt.show()
+pattern = r"\d\d\d\.\d\d"
+time_interval = re.findall(pattern, time_intervals[i])
+#%% plot spectrogramm
+
+shot = 73191
+plot_carpet(shot, PhiRaw, time_interval)

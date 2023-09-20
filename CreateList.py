@@ -57,7 +57,7 @@ def load_ebeam(shot, path):
 filename = imd.path_CreateList_save_2dmaps_lists
 path_save_lists = imd.path_CreateList_save_lists
 slit = imd.slit
-shot = 73191
+shot = 73190
 energy = load_ebeam(shot, imd.DAS_FILES_path)
 time_interval = ''
 radref = imd.load_radrefs(shot, slit, energy)
@@ -243,7 +243,7 @@ def btn_delete_all_scans_on_clicked(_):
 def func_load_list_from_file(data):
     with open(data, 'r') as file:
         content = file.read()
-    pattern = r"from(.+)to(.+)}"
+    pattern = r"from(\d{3}\.\d{2})to(\d{3}\.\d{2})"
     list_file_load = re.findall(pattern, content)
     for elem in list_file_load:
         span_onselect(float(elem[0]), float(elem[1]))
@@ -469,7 +469,7 @@ if {'ne_x', 'ne_y'}.issubset(df.columns):
     list_ne_y_dirty.clear()  # delete dirty signal lists with "--"
     list_ne_x_dirty.clear()
     # Plotting ne Signal
-    plot_ne, = ax.plot(list_ne_x, list_ne_y, label='ne (10^-19 m^-3)', color='red')
+    plot_ne, = ax.plot(list_ne_x, list_ne_y, label='ne (10^19 m^-3)', color='red')
 
 
 """ Ipl - loading, cleaning and plotting Ipl signal. Cleaning because of different dimension of ne signal (about 11998

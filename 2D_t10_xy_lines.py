@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Mar 12 10:29:55 2019
-
-@author: user
+@author: NRCKI
 """
 import numpy as np
 import math
@@ -13,19 +11,15 @@ from scipy import interpolate
 import import_data as imd
 import pandas as pd
 import mplcursors
+import re
 import copy
 import matplotlib.patheffects as path_effects
-from scipy.ndimage import gaussian_filter
-import scipy.ndimage
-from scipy.interpolate import LinearNDInterpolator
-from scipy.spatial.distance import cdist
 from matplotlib.gridspec import GridSpec
+from matplotlib.collections import LineCollection
+from matplotlib.colors import ListedColormap, BoundaryNorm
 
 #%% Language
-plot_labels = {
-    'ru':  {'xlabel': 'x, см', 'ylabel': 'y, см', 'zlabel': 'z, см', 'kV': 'кВ', 'keV':'кэВ'},
-    'eng': {'xlabel': 'x, cm', 'ylabel': 'y, cm', 'zlabel': 'z, cm', 'kV': 'kV', 'keV':'keV'}
-         }
+plot_labels = imd.plot_labels
 #%% Functions
 
 def bin_mean(arr, bin_size=1):
@@ -113,11 +107,11 @@ ne_eps = 0.1 #+-0.1
 
 """ 2D map """
 
-twoD_plot_flag = 1
+twoD_plot_flag = 0
 
 show_title_flag = 0
-show_dots_flag = 1
-show_grid_lines_flag = 0
+show_dots_flag = 0
+show_grid_lines_flag = 1
 
 interpolation_flag = 0
 Npoints = 65
@@ -150,8 +144,8 @@ polar_coordinates_flag = 0
 
 """ Grid """
 
-grid_flag = 0
-detector_line_mode = "mono" #mono #color #rainbow #one_energy
+grid_flag = 1
+detector_line_mode = "rainbow" #mono #color #rainbow #one_energy
 
 if detector_line_mode == "mono":
     grid_annotate_flag = 1 # for #mono
@@ -163,7 +157,7 @@ grid_rainbow_threshold = 2 # 0-2 or None for scatter
 
 """ Sorting """
 
-sort_ne_intdots_zd_flag = 1
+sort_ne_intdots_zd_flag = 0
 intdots_flag = 1
 sort_zd_flag = 1
 z_min_val, z_max_val = -0.85, 0.85 # Zd filter (mask)
@@ -175,6 +169,14 @@ phi_profiles_title_flag = 1
 phi_profiles_save_origin_flag = 0
 phi_profiles_mode = 'mono' # mono, time_intervals, shots, ebeams
 
+""" XY Lines Plot """
+
+xy_lines_plot_flag = 0
+
+""" Сompare Rho with sqrt(x^2 + y^2) """
+
+compare_rho_flag = 0
+
 # %% Import Data
 print('\nimporting data\n')
 print('slit: ', slit)
@@ -184,7 +186,7 @@ print('shot list: ', path_load_list)
 amount_of_shots, shots, energies, time_intervals = imd.load_shots(path_load_list)
 
 # define result array
-res = np.zeros([0, 14])
+res = np.zeros([0, 15])
 
 # mode = 'loader' - load signals via SigView Loader AND pickle them to a file
 # mode = 'pickle' - load signals from pickled files path: objects/%shot%_file.obj or if there is not - load files
@@ -261,9 +263,10 @@ for i in range(len(shots)):
         if (Ua2 >= min(alpha2.y)) & (Ua2 <= max(alpha2.y)):
             x = radref[j, 5]
             y = radref[j, 6]
+            z = radref[j, 7]
 
             res = np.append(res, [[shots[i], energies[i], time_intervals[i], 
-                                   ne_mean, x, y, rho, Ua2, Phi_interp(Ua2),
+                                   ne_mean, x, y, z, rho, Ua2, Phi_interp(Ua2),
                                   RMSPhi_interp(Ua2), Itot_interp(Ua2),
                                   RMSItot_interp(Ua2), RelRMSItot_interp(Ua2),
                                   Zd_interp(Ua2)]], axis=0)
@@ -278,19 +281,21 @@ df['time_interval'] = res[:,2]
 df['ne'] = res[:,3]
 df['x'] = res[:,4]
 df['y'] = res[:,5]
-df['rho'] = res[:,6]
-df['Ua2'] = res[:,7]
-df['Phi'] = res[:,8]
-df['RMSPhi'] = res[:,9]
-df['Itot'] = res[:,10]
-df['RMSItot'] = res[:,11]
-df['RelRMSItot'] = res[:,12]
-df['Zd'] = res[:,13]
+df['z'] = res[:,6]
+df['rho'] = res[:,7]
+df['Ua2'] = res[:,8]
+df['Phi'] = res[:,9]
+df['RMSPhi'] = res[:,10]
+df['Itot'] = res[:,11]
+df['RMSItot'] = res[:,12]
+df['RelRMSItot'] = res[:,13]
+df['Zd'] = res[:,14]
 # convert string to numeric data
 df['Ebeam'] = pd.to_numeric(df['Ebeam'])
 df['ne'] = pd.to_numeric(df['ne'])
 df['x'] = pd.to_numeric(df['x'])
 df['y'] = pd.to_numeric(df['y'])
+df['z'] = pd.to_numeric(df['z'])
 df['rho'] = pd.to_numeric(df['rho'])
 df['Ua2'] = pd.to_numeric(df['Ua2'])
 df['Phi'] = pd.to_numeric(df['Phi'])
@@ -562,17 +567,19 @@ if phi_profiles_flag:
 #%% Grid Plot
 
 
-def plot_lines(df, ebeam, threshold, cmap='jet', ax=None):
+def plot_lines(df, ebeam, threshold, cmap='jet', norm=None, ax=None):
     # Get the data for the current Ebeam value
     x = df.loc[df['Ebeam'] == ebeam]['x'].values
     y = df.loc[df['Ebeam'] == ebeam]['y'].values
     color = df.loc[df['Ebeam'] == ebeam]['Phi'].values
 
     # Plot the data using the plot_colormap function
-    plot_colormap(x, y, color, cmap=cmap, ax=ax, threshold=threshold)
+    plot_colormap(x, y, color, cmap=cmap, norm=norm, ax=ax, threshold=threshold)
 
 
-def plot_colormap(x, y, color, linewidth=10, outline=0, oc='black', cmap='jet', ax=None, cb=False, alpha=1, threshold=None):
+def plot_colormap(x, y, color, cbar_pad=0.013, cbar_fraction=0.1, interp_sample=0,
+                  linewidth=10, outline=0, oc='black', cmap='jet', norm=None,
+                  ax=None, cb=False, alpha=1, threshold=None):
     """
     Plot a line using a custom colormap.
 
@@ -584,14 +591,20 @@ def plot_colormap(x, y, color, linewidth=10, outline=0, oc='black', cmap='jet', 
     - ax: matplotlib Axes object. The axis to plot on (default is None, which creates a new axis).
     - threshold: float or None. The threshold distance between adjacent points below which they will be connected (default is None, which means all points will be plotted as separate dots).
     """
-
+    
+    if interp_sample > 1:
+        x = interpolate_array(x, interp_sample)
+        y = interpolate_array(y, interp_sample)
+        color = interpolate_array(color, interp_sample)
+    
     sig, signal_title, min_val, max_val = get_signal(signal_name, df, plot_labels, language)
     
-    norm = cm.colors.Normalize(vmax=max_val, vmin=min_val)
+    if norm is None:
+        norm = cm.colors.Normalize(vmax=max_val, vmin=min_val)
 
     # Normalize color values to range [0, 1]
     # norm = plt.Normalize(color.min(), color.max())
-
+    
     # Create the colormap
     colormap = plt.cm.get_cmap(cmap)
 
@@ -610,6 +623,55 @@ def plot_colormap(x, y, color, linewidth=10, outline=0, oc='black', cmap='jet', 
                 line.set_solid_capstyle('round')
     else:
         ax.scatter(x, y, c=colormap(color_index))
+
+    # Add a colorbar
+    # if ax is None:
+    if cb:
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array([])
+        cbar = plt.colorbar(sm, ax=ax, pad=cbar_pad, fraction=cbar_fraction)
+        cbar.set_label(signal_title, size=text_size)
+   
+def interpolate_array(arr, length):
+    # Create an interpolation function
+    interp_func = interpolate.interp1d(range(len(arr)), arr, kind='linear')
+
+    # Generate interpolated values at desired indices
+    interpolated_arr = interp_func(np.linspace(0, len(arr) - 1, length))
+
+    return interpolated_arr
+
+def plot_colormap_gray(x, y, color='gray', interp_sample=0, linewidth=10, outline=0, oc='black', cmap='jet', norm=None, ax=None, cb=False, alpha=1, threshold=None):
+    """
+    Plot a line using a custom colormap.
+
+    Arguments:
+    - x: array-like. The x-coordinates of the data to plot.
+    - y: array-like. The y-coordinates of the data to plot.
+    - color: array-like. The colors to use for each point in the data.
+    - cmap: string. The name of the colormap to use (default is 'jet').
+    - ax: matplotlib Axes object. The axis to plot on (default is None, which creates a new axis).
+    - threshold: float or None. The threshold distance between adjacent points below which they will be connected (default is None, which means all points will be plotted as separate dots).
+    """
+    
+    if interp_sample > 1:
+        x = interpolate_array(x, interp_sample)
+        y = interpolate_array(y, interp_sample)
+    
+    sig, signal_title, min_val, max_val = get_signal(signal_name, df, plot_labels, language)
+
+    # Plot the data using a colormap
+    if ax is None:
+        fig, ax = plt.subplots()
+    if threshold is not None:
+        for i in range(len(x) - 1):
+            if np.abs(x[i+1]-x[i]) < threshold and np.abs(y[i+1]-y[i]) < threshold:
+                line,=ax.plot([x[i], x[i + 1]], [y[i], y[i + 1]], color='gray',
+                        linewidth=linewidth, alpha=alpha,
+                        path_effects=[path_effects.Stroke(linewidth=outline, foreground=oc), path_effects.Normal()])
+                line.set_solid_capstyle('round')
+    else:
+        ax.scatter(x, y, c='gray')
     ax.set_xlim([x.min(), x.max()])
     ax.set_ylim([y.min(), y.max()])
     ax.set_xlabel('X')
@@ -622,6 +684,7 @@ def plot_colormap(x, y, color, linewidth=10, outline=0, oc='black', cmap='jet', 
         sm.set_array([])
         cbar = plt.colorbar(sm, ax=ax, pad=cbar_pad)
         cbar.set_label(signal_title)
+        
 
 # get colors for plotting grid
 def get_color(ebeam):
@@ -725,9 +788,10 @@ if grid_flag:
             
     elif detector_line_mode == "rainbow":
         
-        plot_colormap(df['x'].to_numpy(), df['y'].to_numpy(), df['Phi'].to_numpy(),
+        plot_colormap(df['x'].to_numpy(), df['y'].to_numpy(), df['Phi'].to_numpy(), interp_sample=0,
                       cmap=cmap_2d_map, ax=ax_grid, cb=True, threshold=grid_rainbow_threshold)
-    
+        
+        
     ax_grid.grid()
     ax_grid.set_aspect('equal', adjustable='box')
     ax_grid.set_xlabel(plot_labels[language]['xlabel'], size=text_size)
@@ -737,87 +801,10 @@ if grid_flag:
     ax_grid.set_ylim(-7, 22)
     plt.show()
 
-#%% Plot x, y
-
-# time_interval_ax = 'from632.70to672.41'
-
-# x_xy = df[df.time_interval == time_interval_ax].x.to_numpy()
-# y_xy = df[df.time_interval == time_interval_ax].y.to_numpy()
-# phi_xy = df[df.time_interval == time_interval_ax].Phi.to_numpy()
-# rho_xy = df[df.time_interval == time_interval_ax].rho.to_numpy()
-# t_xy = np.linspace(632.70, 672.41, len(phi_xy))
-
-# fig_xy = plt.figure(layout="constrained")
-
-# widths = [1, 1, 3]
-# gs = GridSpec(3, 3, figure=fig_xy, width_ratios=widths)
-# marker = 'o'
-# linewidth = 4
-# markersize = 10
-
-# ax_xy1 = fig_xy.add_subplot(gs[0, :-1])
-# ax_xy2 = fig_xy.add_subplot(gs[1, :-1])
-# ax_xy3 = fig_xy.add_subplot(gs[2, :-1])
-
-# ax_xy1.plot(t_xy, x_xy, marker=marker, linewidth=linewidth, markersize=markersize)
-# ax_xy2.plot(t_xy, y_xy, marker=marker, linewidth=linewidth, markersize=markersize)
-# ax_xy3.plot(t_xy, phi_xy, marker=marker, linewidth=linewidth, markersize=markersize)
-
-# ax_xy1.grid()
-# ax_xy2.grid()
-# ax_xy3.grid()
-
-# ax_xy3.set_xlabel('t, с', size=text_size)
-# ax_xy1.set_ylabel(plot_labels[language]['xlabel'], size=text_size)
-# ax_xy2.set_ylabel(plot_labels[language]['ylabel'], size=text_size)
-# ax_xy3.set_ylabel('Signal', size=text_size)
-# ax_xy1.tick_params(axis='both', labelsize=text_size)
-# ax_xy2.tick_params(axis='both', labelsize=text_size)
-# ax_xy3.tick_params(axis='both', labelsize=text_size)
-
-# ax_xy1.set_xlim(632.70, 672.41)
-# ax_xy2.set_xlim(632.70, 672.41)
-# ax_xy3.set_xlim(632.70, 672.41)
-
-# ax_map = fig_xy.add_subplot(gs[:, 2])
-
-# mplcursors.cursor(ax_xy1).connect("add", lambda sel: sel.annotation.set_text(f'({sel.target[0]:.2f}, {sel.target[1]:.2f})'))
-# mplcursors.cursor(ax_xy2).connect("add", lambda sel: sel.annotation.set_text(f'({sel.target[0]:.2f}, {sel.target[1]:.2f})'))
-# mplcursors.cursor(ax_xy3).connect("add", lambda sel: sel.annotation.set_text(f'({sel.target[0]:.2f}, {sel.target[1]:.2f})'))
-
-df[df.Ebeam != 240].x.to_numpy(), df[df.Ebeam != 240].y.to_numpy()
-
-time_interval_ax = 'from672.68to709.79'
-
-x_xy = df[df.time_interval == time_interval_ax].x.to_numpy()
-y_xy = df[df.time_interval == time_interval_ax].y.to_numpy()
-phi_xy = df[df.time_interval == time_interval_ax].Phi.to_numpy()
-rho_xy = df[df.time_interval == time_interval_ax].rho.to_numpy()
-t_xy = np.linspace(672.68, 709.79, len(phi_xy))
-
-px = 1/plt.rcParams['figure.dpi']  # pixel in inches
-fig_xy = plt.figure(figsize=(1600*px, 900*px), layout="constrained")
-
-widths = [1, 1, 3]
-gs = GridSpec(3, 3, figure=fig_xy, width_ratios=widths)
-marker = 'o'
-linewidth = 4
-markersize = 10
-
-ax_xy1 = fig_xy.add_subplot(gs[0, :-1])
-ax_xy2 = fig_xy.add_subplot(gs[1, :-1])
-ax_xy3 = fig_xy.add_subplot(gs[2, :-1])
-
-ax_map = fig_xy.add_subplot(gs[:, 2])
-
-mplcursors.cursor(ax_xy1).connect("add", lambda sel: sel.annotation.set_text(f'({sel.target[0]:.2f}, {sel.target[1]:.2f})'))
-mplcursors.cursor(ax_xy2).connect("add", lambda sel: sel.annotation.set_text(f'({sel.target[0]:.2f}, {sel.target[1]:.2f})'))
-mplcursors.cursor(ax_xy3).connect("add", lambda sel: sel.annotation.set_text(f'({sel.target[0]:.2f}, {sel.target[1]:.2f})'))
-
 #%% Interpolate dots and plot 2d map
 
 if twoD_plot_flag:
-    # fig_map, ax_map = plt.subplots()
+    fig_map, ax_map = plt.subplots()
     
     imd.plot_t10_contour(ax_map)
     
@@ -956,45 +943,159 @@ if twoD_plot_flag:
     ax_map.tick_params(axis='both', labelsize=text_size)
     ax_map.set_xlim(1.17, 28.93)
     ax_map.set_ylim(-4.76, 22.93)
-    
-    #XY plot
-    # ax_map.set_xlim(1.17, 28.93)
-    # ax_map.set_ylim(-4.76, 22.93)
-    
-    linewidth = 1
-    size = 300
-    color='blue'
-    
-    ax_xy1.plot(t_xy, x_xy, linewidth=5, zorder=1)
-    ax_xy2.plot(t_xy, y_xy, linewidth=5, zorder=1)
-    ax_xy3.plot(t_xy, phi_xy, linewidth=5, zorder=1)
-    
-    ax_xy1.scatter(t_xy, x_xy, marker=marker, linewidth=linewidth, c=phi_xy, 
-                   cmap=cmap, norm=norm, edgecolors='black', linewidths=linewidth, s=size, zorder=2)
-    
-    ax_xy2.scatter(t_xy, y_xy, marker=marker, linewidth=linewidth, c=phi_xy, 
-                   cmap=cmap, norm=norm, edgecolors='black', linewidths=linewidth, s=size, zorder=2)
-    
-    ax_xy3.scatter(t_xy, phi_xy, marker=marker, linewidth=linewidth, c=phi_xy, 
-                   cmap=cmap, norm=norm, edgecolors='black', linewidths=linewidth, s=size, zorder=2)
-
-    ax_xy1.grid()
-    ax_xy2.grid()
-    ax_xy3.grid()
-
-    ax_xy3.set_xlabel('t, с', size=text_size)
-    ax_xy1.set_ylabel(plot_labels[language]['xlabel'], size=text_size)
-    ax_xy2.set_ylabel(plot_labels[language]['ylabel'], size=text_size)
-    ax_xy3.set_ylabel('sig, у.е.', size=text_size)
-    ax_xy1.tick_params(axis='both', labelsize=text_size)
-    ax_xy2.tick_params(axis='both', labelsize=text_size)
-    ax_xy3.tick_params(axis='both', labelsize=text_size)
-
-    ax_xy1.set_xlim(672.68, 709.79)
-    ax_xy2.set_xlim(672.68, 709.79)
-    ax_xy3.set_xlim(672.68, 709.79)
-    
     # manager = plt.get_current_fig_manager()
     # manager.full_screen_toggle()
     # plt.tight_layout()
     plt.show()
+
+    #%% Plot x, y
+def plot_colorful_line(x, y, z, label, fig, ax, time_interval, cmap, norm, linewidth=5, interp_sample=0, cb=False):
+    
+    if interp_sample > 1:
+        x = interpolate_array(x, interp_sample)
+        y = interpolate_array(y, interp_sample)
+        z = interpolate_array(z, interp_sample)
+    
+    points = np.array([x, y]).T.reshape(-1, 1, 2)
+    segments = np.concatenate([points[:-1], points[1:]], axis=1)
+    
+    # gradient = np.gradient(z)
+    # norm = plt.Normalize(min(z), max(z))
+    
+    lc = LineCollection(segments, cmap=cmap, norm=norm)
+    
+    # Set the values used for colormapping
+    lc.set_array(z)
+    lc.set_linewidth(linewidth)
+    line = ax.add_collection(lc)
+    if cb:
+        fig.colorbar(line, ax=ax)
+    
+    ax.grid()
+    ax.set_ylabel(plot_labels[language][label], size=text_size)
+    ax.yaxis.set_major_formatter('{x:.1f}')
+    ax.tick_params(axis='both', labelsize=text_size)
+    ax.set_xlim(time_interval)
+    ax.set_ylim(min(y), max(y))
+
+if xy_lines_plot_flag:    
+    sig, signal_title, min_val, max_val  = get_signal(signal_name, df, plot_labels, language)
+    dots_color = sig
+    
+    cmap = plt.cm.get_cmap(cmap_2d_map)
+    
+    if log_colorbar_flag == 0:
+        norm = cm.colors.Normalize(vmax=max_val, vmin=min_val)
+    elif log_colorbar_flag == 1:
+        norm = cm.colors.LogNorm(vmin=0.005, vmax=0.5)
+
+    time_interval_ax = 'from672.68to709.79'
+    linewidth = 10
+    interp_sample = 1000
+    time_interval_xy = (672.68, 709.79)
+    cbar_pad = 0.013
+    cbar_fraction = 0.04995
+
+    x_xy = df[df.time_interval == time_interval_ax].x.to_numpy()
+    y_xy = df[df.time_interval == time_interval_ax].y.to_numpy()
+    phi_xy = df[df.time_interval == time_interval_ax].Phi.to_numpy()
+    rho_xy = df[df.time_interval == time_interval_ax].rho.to_numpy()
+    t_xy = np.linspace(672.68, 709.79, len(phi_xy))
+
+    px = 1/plt.rcParams['figure.dpi']  # pixel in inches
+    fig_xy = plt.figure(figsize=(1600*px, 900*px), layout="constrained")
+
+    widths = [2.5, 1, 5]
+    heights = [1, 1, 1]
+    gs = GridSpec(3, 3, figure=fig_xy, width_ratios=widths, height_ratios=heights)
+    
+    gs.update(wspace=0.17)
+
+    ax_xy1 = fig_xy.add_subplot(gs[0, :-1])
+    ax_xy2 = fig_xy.add_subplot(gs[1, :-1])
+    ax_xy3 = fig_xy.add_subplot(gs[2, :-1])
+    
+    plot_colorful_line(t_xy, x_xy, phi_xy, 'xlabel', fig_xy, ax_xy1, time_interval_xy, cmap, norm,
+                       linewidth=linewidth, interp_sample=interp_sample)
+    plot_colorful_line(t_xy, y_xy, phi_xy, 'ylabel', fig_xy, ax_xy2, time_interval_xy,  cmap, norm,
+                       linewidth=linewidth, interp_sample=interp_sample)
+    plot_colorful_line(t_xy, phi_xy, phi_xy, 'sig', fig_xy, ax_xy3, time_interval_xy,  cmap, norm,
+                       linewidth=linewidth, interp_sample=interp_sample)
+    
+    ax_xy1.set_yticklabels([None, 12.5, None, 17.5])
+    ax_xy2.set_yticklabels([None, 5.0, None, 15.0])
+    
+    ax_xy4 = fig_xy.add_subplot(gs[:, 2])
+    
+    plot_colormap(df[df.Ebeam == 240].x.to_numpy(), df[df.Ebeam == 240].y.to_numpy(),
+                  df[df.Ebeam == 240].Phi.to_numpy(), interp_sample=100,
+                  cmap=cmap, norm=norm, ax=ax_xy4, linewidth=15, cb=True, threshold=grid_rainbow_threshold,
+                  cbar_pad=cbar_pad, cbar_fraction=cbar_fraction)
+    
+    plot_colormap_gray(df[df.Ebeam != 240].x.to_numpy(), df[df.Ebeam != 240].y.to_numpy(), color='gray',
+                  cmap=cmap, norm=norm, ax=ax_xy4, linewidth=15, cb=False, threshold=grid_rainbow_threshold)
+    
+    imd.plot_t10_contour(ax_xy4)
+    ax_xy3.set_xlabel(plot_labels[language]['t'], size=text_size)
+    ax_xy4.grid()
+    ax_xy4.set_aspect('equal', adjustable='box')
+    ax_xy4.set_xlabel(plot_labels[language]['xlabel'], size=text_size)
+    ax_xy4.set_ylabel(plot_labels[language]['ylabel'], size=text_size)
+    ax_xy4.tick_params(axis='both', labelsize=text_size)
+    ax_xy4.set_xlim(1.17, 28.93)
+    ax_xy4.set_ylim(-4.76, 22.93)
+    
+    # Disable ticklables of ax_xy1 and ax_xy2 plots
+    plt.setp(ax_xy1.get_xticklabels(),visible=False)
+    plt.setp(ax_xy2.get_xticklabels(),visible=False)
+    
+    # Add annotation text ABCD
+    ax_xy1.text(0.05,0.1, plot_labels[language]['a'], transform=ax_xy1.transAxes, size=text_size, bbox=dict(facecolor='white', alpha=1, edgecolor='none'))
+    ax_xy2.text(0.05,0.75, plot_labels[language]['b'], transform=ax_xy2.transAxes, size=text_size, bbox=dict(facecolor='white', alpha=1, edgecolor='none'))
+    ax_xy3.text(0.05,0.75, plot_labels[language]['c'], transform=ax_xy3.transAxes, size=text_size, bbox=dict(facecolor='white', alpha=1, edgecolor='none'))
+    ax_xy4.text(0.9,0.91, plot_labels[language]['d'], transform=ax_xy4.transAxes, size=text_size, bbox=dict(facecolor='white', alpha=1, edgecolor='none'))
+    
+    mplcursors.cursor(ax_xy1).connect("add", lambda sel: sel.annotation.set_text(f'({sel.target[0]:.2f}, {sel.target[1]:.2f})'))
+    mplcursors.cursor(ax_xy2).connect("add", lambda sel: sel.annotation.set_text(f'({sel.target[0]:.2f}, {sel.target[1]:.2f})'))
+    mplcursors.cursor(ax_xy3).connect("add", lambda sel: sel.annotation.set_text(f'({sel.target[0]:.2f}, {sel.target[1]:.2f})'))
+    mplcursors.cursor(ax_xy4).connect("add", lambda sel: sel.annotation.set_text(f'({sel.target[0]:.2f}, {sel.target[1]:.2f})'))
+    
+    plt.show()
+ 
+    
+if compare_rho_flag:
+    
+    linewidth = 10
+    pattern = r"from(\d{3}\.\d{2})to(\d{3}\.\d{2})"
+    
+    mode = 'xy' # 'xy'
+        
+    for ti in df.time_interval.unique():
+        
+        time_interval = re.findall(pattern, ti)
+        
+        fig_test, ax_test = plt.subplots()
+
+        x_xy = df[df.time_interval == ti].x.to_numpy()
+        y_xy = df[df.time_interval == ti].y.to_numpy()
+        z_xy = df[df.time_interval == ti].y.to_numpy()
+        rho_xy = df[df.time_interval == ti].rho.to_numpy()
+        t_xy = np.linspace(float(time_interval[0][0]), float(time_interval[0][1]), len(rho_xy))
+        
+        if mode == 'xyz':
+            sqrtxy = np.sqrt(x_xy**2+y_xy**2+z_xy**2)
+            label='sqrt(x^2+y^2+z^2)'
+        elif mode == 'xy':
+            sqrtxy = np.sqrt(x_xy**2+y_xy**2)
+            label='sqrt(x^2+y^2)'
+            
+        ax_test.plot(t_xy, sqrtxy, label=label)
+        ax_test.plot(t_xy, rho_xy, label='rho')
+        ax_test.set_title('# '+str(str(df[df.time_interval == ti].Shot.to_numpy()[0]))+str(' ')+
+                          str(df[df.time_interval == ti].Ebeam.to_numpy()[0])+' kV '+
+                          str(ti), size=text_size-10)
+        ax_test.set_xlabel('t, ms', size=text_size)
+        ax_test.set_ylabel('rho, cm', size=text_size)
+        plt.legend()
+        plt.grid()
+        plt.show()

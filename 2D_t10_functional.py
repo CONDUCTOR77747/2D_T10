@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Mar 12 10:29:55 2019
-
-@author: user
+@author: NRCKI
 """
 import numpy as np
 import math
@@ -15,17 +13,11 @@ import pandas as pd
 import mplcursors
 import copy
 import matplotlib.patheffects as path_effects
-from scipy.ndimage import gaussian_filter
-import scipy.ndimage
-from scipy.interpolate import LinearNDInterpolator
-from scipy.spatial.distance import cdist
 from matplotlib.gridspec import GridSpec
+import grid_functions as grid
 
 #%% Language
-plot_labels = {
-    'ru':  {'xlabel': 'x, см', 'ylabel': 'y, см', 'zlabel': 'z, см', 'kV': 'кВ', 'keV':'кэВ'},
-    'eng': {'xlabel': 'x, cm', 'ylabel': 'y, cm', 'zlabel': 'z, cm', 'kV': 'kV', 'keV':'keV'}
-         }
+plot_labels = imd.plot_labels
 #%% Functions
 
 def bin_mean(arr, bin_size=1):
@@ -64,6 +56,8 @@ def get_signal(signal_name, df, plot_lablels, language):
         return df['RMSItot'].to_numpy(), 'RMS Itot',  -0.05, 0.35
     elif signal_name == "RelRMSItot":
         return df['RelRMSItot'].to_numpy(), r'RelRMS($\delta I_{tot}/I_{tot}$)',  0.01, 0.05
+    elif signal_name == "A_QCM":
+        return df['A_QCM'].to_numpy(), 'A_QCM',  0.00, 0.06
     
 # check if two points intersects
 def xy_intersec(x1,y1,x2,y2,eps):
@@ -86,7 +80,7 @@ histogramm_flag = 0
 # mode = 0 load list without sort
 # mode = 1 load sorted list via ne and phi profiles
 # mode = 2 plot histogramm
-mode = 1
+mode = 2
 
 if mode == 0:
     path_load_list = imd.path_2d_t10_load # load list without sort
@@ -105,21 +99,21 @@ path_obj = imd.path_2d_t10_save_obj
 path_origin_save = imd.path_phi_profiles_save_origin
 slit = imd.slit
 #%% Operational Parameters
-language = 'ru'
+language = 'eng'
 
-signal_name = 'Phi' # Phi PhiRaw RMSPhi Itot RMSItot RelRMSItot
+signal_name = 'A_QCM' # Phi PhiRaw RMSPhi Itot RMSItot RelRMSItot A_QCM
 xy_eps = 0.1895 # dots interceprion
-ne_eps = 0.1 #+-0.1
+ne_eps = 0.2 #+-0.1
 
 """ 2D map """
 
 twoD_plot_flag = 1
 
-show_title_flag = 0
-show_dots_flag = 1
+show_title_flag = 1
+show_dots_flag = 0
 show_grid_lines_flag = 0
 
-interpolation_flag = 0
+interpolation_flag = 1
 Npoints = 65
 #interpolation diapason
 #OH
@@ -142,9 +136,9 @@ equipotential_lines_flag = 0
 contourf_flag = 0
 amount_of_lines = 8
 
-colorbar_flag = 0
-cmap_2d_map = 'rainbow'
-log_colorbar_flag = 0
+colorbar_flag = 1
+cmap_2d_map = 'jet'
+log_colorbar_flag = 1
 
 polar_coordinates_flag = 0
 
@@ -170,10 +164,18 @@ z_min_val, z_max_val = -0.85, 0.85 # Zd filter (mask)
 
 """ Phi profiles """
 
-phi_profiles_flag = 0
+phi_profiles_flag = 1
 phi_profiles_title_flag = 1
 phi_profiles_save_origin_flag = 0
 phi_profiles_mode = 'mono' # mono, time_intervals, shots, ebeams
+
+""" XY Lines Plot """
+# Plot for Physic of Atomic Nuclei
+xy_lines_plot_flag = 0
+
+""" Inspect scans """
+
+inspect_scans_flag = 0
 
 # %% Import Data
 print('\nimporting data\n')
@@ -184,7 +186,7 @@ print('shot list: ', path_load_list)
 amount_of_shots, shots, energies, time_intervals = imd.load_shots(path_load_list)
 
 # define result array
-res = np.zeros([0, 14])
+res = np.zeros([0, 15])
 
 # mode = 'loader' - load signals via SigView Loader AND pickle them to a file
 # mode = 'pickle' - load signals from pickled files path: objects/%shot%_file.obj or if there is not - load files
@@ -193,11 +195,12 @@ mode = 'pickle'
 ne_list = []
 
 force_reload = ["73150", "73191", "73203"]
+counter_not_loaded = 0
+
+df_inspector = pd.DataFrame()
 
 # load signals from database
 for i in range(len(shots)):
-    
-    mode = 'pickle'
     
     print(f'\n{i+1}/{amount_of_shots}')
     
@@ -212,19 +215,29 @@ for i in range(len(shots)):
     Phi = imd.load_signals(mode, 'Phi', shots[i], slit, time_intervals[i], path_obj)
     RMSPhi = imd.load_signals(mode, 'RMSPhi', shots[i], slit, time_intervals[i], path_obj)
     Zd = imd.load_signals(mode, 'Zd', shots[i], slit, time_intervals[i], path_obj)
+    A_QCM = imd.load_signals(mode, 'A_QCM', shots[i], slit, time_intervals[i], path_obj)
+    
+    if inspect_scans_flag:
+        # add A_QCM to inspector's dataframe. Plot it and inspect
+        # df_buffer = pd.DataFrame()
+        # df_inspector[f"{time_intervals[i]}"] = (A_QCM.x, A_QCM.y)
+        pass
     
     ne_mean = np.mean(dens.y)
     ne_list.append(ne_mean)
     print('shot #{}, E={}'.format(shots[i], energies[i]))
     print('<ne> = {:.3f}'.format(ne_mean))
     print(f'time {time_intervals[i]}')
-
+    
     # correct Phi according to line averaged density
     # dens_interp = interpolate.interp1d(dens.x, dens.y)
     # Phi.y = Phi.y * dens_interp(Phi.x) / dens_base
     
     # make Ua2 interpolants
     inds = alpha2.y.argsort()
+    
+    # print(len(inds), len(A_QCM.y))
+    # print(alpha2.y[inds], A_QCM.y)
     
     # Interpolate data sets according to A2 points number
     Phi_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
@@ -234,18 +247,37 @@ for i in range(len(shots)):
                                           bin_mean(RMSPhi.y[inds]),
                                           bounds_error=False)   
     Itot_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
-                                       bin_mean(Itot.y[inds]),
-                                       bounds_error=False)
+                                        bin_mean(Itot.y[inds]),
+                                        bounds_error=False)
     RMSItot_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
                                           bin_mean(RMSItot.y[inds]),
                                           bounds_error=False)
     RelRMSItot_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
-                                             bin_mean(RelRMSItot.y[inds]),
-                                             bounds_error=False)
+                                              bin_mean(RelRMSItot.y[inds]),
+                                              bounds_error=False)
     Zd_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
-                                     bin_mean(Zd.y[inds]),
-                                     bounds_error=False)
-
+                                      bin_mean(Zd.y[inds]),
+                                      bounds_error=False)
+    
+    try:
+        # A_QCM.resampleas(alpha2)
+        A_QCM_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
+                                          bin_mean(A_QCM.y[inds]),
+                                          bounds_error=False)
+    except:
+        A_QCM.resampleas(alpha2)
+        A_QCM_interp = interpolate.interp1d(bin_mean(alpha2.y[inds]),
+                                          bin_mean(A_QCM.y[inds]),
+                                          bounds_error=False)
+        # print("\nNOT LOADED\n")
+        # print(len(alpha2.y))
+        # print(alpha2.y)
+        # print(len(A_QCM.y))
+        # print(A_QCM.y)
+        # counter_not_loaded += 1
+        pass
+        # raise IndexError("A_QCM and A2 aren't equal")
+    
     # get discrete Ua2, rho and x,y values from radref files
     fname = imd.load_radrefs(shots[i], slit, energies[i], 'file')
     print('rho: ', fname)
@@ -261,12 +293,12 @@ for i in range(len(shots)):
         if (Ua2 >= min(alpha2.y)) & (Ua2 <= max(alpha2.y)):
             x = radref[j, 5]
             y = radref[j, 6]
-
+            
             res = np.append(res, [[shots[i], energies[i], time_intervals[i], 
                                    ne_mean, x, y, rho, Ua2, Phi_interp(Ua2),
                                   RMSPhi_interp(Ua2), Itot_interp(Ua2),
                                   RMSItot_interp(Ua2), RelRMSItot_interp(Ua2),
-                                  Zd_interp(Ua2)]], axis=0)
+                                  Zd_interp(Ua2), A_QCM_interp(Ua2)]], axis=0)
 
 print('\nloaded:', path_load_list)
 #%% Pass the data to a pandas DataFrame
@@ -286,6 +318,7 @@ df['Itot'] = res[:,10]
 df['RMSItot'] = res[:,11]
 df['RelRMSItot'] = res[:,12]
 df['Zd'] = res[:,13]
+df['A_QCM'] = res[:,14]
 # convert string to numeric data
 df['Ebeam'] = pd.to_numeric(df['Ebeam'])
 df['ne'] = pd.to_numeric(df['ne'])
@@ -299,7 +332,7 @@ df['Itot'] = pd.to_numeric(df['Itot'])
 df['RMSItot'] = pd.to_numeric(df['RMSItot'])
 df['RelRMSItot'] = pd.to_numeric(df['RelRMSItot'])
 df['Zd'] = pd.to_numeric(df['Zd'])
-
+df['A_QCM'] = pd.to_numeric(df['A_QCM'], errors='coerce')
 # save copy of raw data
 df_imported = copy.deepcopy(df)
 
@@ -493,14 +526,14 @@ if phi_profiles_flag:
     
         x = df['rho'].to_list()
         
-        y = df['Phi'].to_list()
+        y = df['A_QCM'].to_list()
         
         for i in range(len(x)):
             line = ax_phi_prof.errorbar(x, 
                                         y, 
-                                        xerr=0.5, yerr=0.05, fmt='o',
-                                        ecolor='gray', elinewidth=0.5, capsize=4, 
-                                        capthick=0.7, mfc='black', mec='black',
+                                        xerr=0.0, yerr=0.00, fmt='o',
+                                        ecolor='gray', elinewidth=0.0, capsize=4, 
+                                        capthick=0.0, mfc='black', mec='black',
                                         marker='o',markersize=5.)
                     # label=f'Shot: {0}\nE: {energies[i]}\nTI: {0}\nne: {0}')
     
@@ -532,35 +565,34 @@ if phi_profiles_flag:
             cursor = mplcursors.cursor(dots, highlight=True, multiple=True)
         plt.set_cmap(cmap)
 
-        # Plot parameters
+    # Plot parameters
         
-        ax_phi_prof.tick_params(axis='both', labelsize=text_size)
-        ax_phi_prof.grid()
-        #ax_phi_prof.set_xlim(7, 35)
-        #ax_phi_prof.set_ylim(-1.6, 0.25)
-        plt.subplots_adjust(top=0.9,
-        bottom=0.11,
-        left=0.26,
-        right=0.8,
-        hspace=0.2,
-        wspace=0.2)
-        ax_phi_prof.set_xlabel('r, см', size=text_size)
-        ax_phi_prof.set_ylabel(r'$\varphi$, кВ', size=text_size)
-        if phi_profiles_title_flag:
-            ne_min = round(np.min(df['ne']), 3)
-            ne_max = round(np.max(df['ne']), 3)
-            ne_mean = round(np.mean(df['ne']), 3)
-            ax_phi_prof.set_title(f'ne: avg: {ne_mean} ± {round((ne_max - ne_min)/2., 3)}; min: {ne_min}; max: {ne_max}', fontsize=text_size)
-            
-        if phi_profiles_save_origin_flag:
-            df_phi_profiles_origin_save = pd.DataFrame()
-            df_phi_profiles_origin_save['Rho'] = x
-            df_phi_profiles_origin_save['Phi'] = y
-            df_phi_profiles_origin_save.to_csv(path_origin_save, index=False, sep='\t')
-            print(f'Saved to Origin: {path_origin_save}')
+    ax_phi_prof.tick_params(axis='both', labelsize=text_size)
+    ax_phi_prof.grid()
+    #ax_phi_prof.set_xlim(7, 35)
+    #ax_phi_prof.set_ylim(-1.6, 0.25)
+    plt.subplots_adjust(top=0.9,
+    bottom=0.11,
+    left=0.26,
+    right=0.8,
+    hspace=0.2,
+    wspace=0.2)
+    ax_phi_prof.set_xlabel('r, см', size=text_size)
+    ax_phi_prof.set_ylabel(r'$A_{QCM}$, %', size=text_size)
+    if phi_profiles_title_flag:
+        ne_min = round(np.min(df['ne']), 3)
+        ne_max = round(np.max(df['ne']), 3)
+        ne_mean = round(np.mean(df['ne']), 3)
+        ax_phi_prof.set_title(f'ne: avg: {ne_mean} ± {round((ne_max - ne_min)/2., 3)}; min: {ne_min}; max: {ne_max}', fontsize=text_size)
+        
+    if phi_profiles_save_origin_flag:
+        df_phi_profiles_origin_save = pd.DataFrame()
+        df_phi_profiles_origin_save['Rho'] = x
+        df_phi_profiles_origin_save['Phi'] = y
+        df_phi_profiles_origin_save.to_csv(path_origin_save, index=False, sep='\t')
+        print(f'Saved to Origin: {path_origin_save}')
 
 #%% Grid Plot
-
 
 def plot_lines(df, ebeam, threshold, cmap='jet', ax=None):
     # Get the data for the current Ebeam value
@@ -570,7 +602,6 @@ def plot_lines(df, ebeam, threshold, cmap='jet', ax=None):
 
     # Plot the data using the plot_colormap function
     plot_colormap(x, y, color, cmap=cmap, ax=ax, threshold=threshold)
-
 
 def plot_colormap(x, y, color, linewidth=10, outline=0, oc='black', cmap='jet', ax=None, cb=False, alpha=1, threshold=None):
     """
@@ -639,9 +670,46 @@ def get_color(ebeam):
 set_of_energies = sorted(list(set(energies)))
 if grid_flag:
     
+    # px = 1/plt.rcParams['figure.dpi']  # pixel in inches
+    # fig_grid = plt.figure(figsize=(2560*px, 1440*px), layout="constrained")
+    # ax_grid = fig_grid.add_subplot()
     fig_grid, ax_grid = plt.subplots()
     imd.plot_t10_contour(ax_grid)
     
+    #%% grid plot with gray pad
+
+    parameters = {
+        #number of trajectories
+        'N_start': 980,
+        'N_stop': 999,
+        #Beam energy
+        'E_start': 180,
+        'E_stop': 330,
+        'E_step': 10,
+        #Slit numbers
+        'slit_start': 3,
+        'slit_stop': 3,
+        #Number of thin filaments
+        'n_filaments': 3,
+        'n_dim': 5000,
+                  }
+
+    mode = 'home'
+    if mode=='home':
+        dirname1 = "H:\\Другие компьютеры\\PC-NRCKI\\radref_calc_T-10\\output\\B22_I230_offax1"
+        dirname2 = 'H:\\Другие компьютеры\\PC-NRCKI\\radref_calc_T-10\\output'
+        # dirname2 = 'H:\\Другие компьютеры\\PC-NRCKI\\radref_calc_T-10\\output\\SGTM1'
+    elif mode=='nrcki':
+        dirname1 = "C:\\Progs\\Py\\Coils\\T-10_1Dbeam_NewAnalyzer_5slits\\output\\OLD\\B22_I230_offax1"
+        dirname2 = "C:\\Progs\\Py\\Radreferences_T-10\\radref_calc_T-10\\output"
+        # dirname2 = "C:\\Progs\\Py\\Radreferences_T-10\\radref_calc_T-10\\output\\SGTM1"
+    
+    traj0 = grid.import_traj(parameters, dirname2)
+    grid.plot_grid(ax_grid, traj0, legend=False, marker_A2='*', marker_E=None,
+                   A2=False, alpha_E=0.7, linewidth_E=7, language=language,
+                   color_A2='blue', linewidth_A2=3, color_E='gray', cap_style='round')
+
+    #%%    
     if detector_line_mode == "one_energy":
         one_energy = 300
         for flag_grid_one_energy in set_of_energies:
@@ -733,91 +801,54 @@ if grid_flag:
     ax_grid.set_xlabel(plot_labels[language]['xlabel'], size=text_size)
     ax_grid.set_ylabel(plot_labels[language]['ylabel'], size=text_size)
     ax_grid.tick_params(axis='both', labelsize=text_size)
-    ax_grid.set_xlim(2, 30.7)
-    ax_grid.set_ylim(-7, 22)
+    ax_grid.set_xlim(0, 33)
+    ax_grid.set_ylim(-10, 30)
     plt.show()
 
 #%% Plot x, y
+if xy_lines_plot_flag:
+    df[df.Ebeam != 240].x.to_numpy(), df[df.Ebeam != 240].y.to_numpy()
+    
+    time_interval_ax = 'from672.68to709.79'
+    
+    x_xy = df[df.time_interval == time_interval_ax].x.to_numpy()
+    y_xy = df[df.time_interval == time_interval_ax].y.to_numpy()
+    phi_xy = df[df.time_interval == time_interval_ax].Phi.to_numpy()
+    rho_xy = df[df.time_interval == time_interval_ax].rho.to_numpy()
+    t_xy = np.linspace(672.68, 709.79, len(phi_xy))
+    
+    px = 1/plt.rcParams['figure.dpi']  # pixel in inches
+    fig_xy = plt.figure(figsize=(1600*px, 900*px), layout="constrained")
+    
+    widths = [1, 1, 3]
+    gs = GridSpec(3, 3, figure=fig_xy, width_ratios=widths)
+    marker = 'o'
+    linewidth = 4
+    markersize = 10
+    
+    ax_xy1 = fig_xy.add_subplot(gs[0, :-1])
+    ax_xy2 = fig_xy.add_subplot(gs[1, :-1])
+    ax_xy3 = fig_xy.add_subplot(gs[2, :-1])
+    
+    # ax_map = fig_xy.add_subplot(gs[:, 2])
+    
+    mplcursors.cursor(ax_xy1).connect("add", lambda sel: sel.annotation.set_text(f'({sel.target[0]:.2f}, {sel.target[1]:.2f})'))
+    mplcursors.cursor(ax_xy2).connect("add", lambda sel: sel.annotation.set_text(f'({sel.target[0]:.2f}, {sel.target[1]:.2f})'))
+    mplcursors.cursor(ax_xy3).connect("add", lambda sel: sel.annotation.set_text(f'({sel.target[0]:.2f}, {sel.target[1]:.2f})'))
 
-# time_interval_ax = 'from632.70to672.41'
+#%% Inscpect scans ("Inspector" version=0.1)
 
-# x_xy = df[df.time_interval == time_interval_ax].x.to_numpy()
-# y_xy = df[df.time_interval == time_interval_ax].y.to_numpy()
-# phi_xy = df[df.time_interval == time_interval_ax].Phi.to_numpy()
-# rho_xy = df[df.time_interval == time_interval_ax].rho.to_numpy()
-# t_xy = np.linspace(632.70, 672.41, len(phi_xy))
+if inspect_scans_flag:
 
-# fig_xy = plt.figure(layout="constrained")
-
-# widths = [1, 1, 3]
-# gs = GridSpec(3, 3, figure=fig_xy, width_ratios=widths)
-# marker = 'o'
-# linewidth = 4
-# markersize = 10
-
-# ax_xy1 = fig_xy.add_subplot(gs[0, :-1])
-# ax_xy2 = fig_xy.add_subplot(gs[1, :-1])
-# ax_xy3 = fig_xy.add_subplot(gs[2, :-1])
-
-# ax_xy1.plot(t_xy, x_xy, marker=marker, linewidth=linewidth, markersize=markersize)
-# ax_xy2.plot(t_xy, y_xy, marker=marker, linewidth=linewidth, markersize=markersize)
-# ax_xy3.plot(t_xy, phi_xy, marker=marker, linewidth=linewidth, markersize=markersize)
-
-# ax_xy1.grid()
-# ax_xy2.grid()
-# ax_xy3.grid()
-
-# ax_xy3.set_xlabel('t, с', size=text_size)
-# ax_xy1.set_ylabel(plot_labels[language]['xlabel'], size=text_size)
-# ax_xy2.set_ylabel(plot_labels[language]['ylabel'], size=text_size)
-# ax_xy3.set_ylabel('Signal', size=text_size)
-# ax_xy1.tick_params(axis='both', labelsize=text_size)
-# ax_xy2.tick_params(axis='both', labelsize=text_size)
-# ax_xy3.tick_params(axis='both', labelsize=text_size)
-
-# ax_xy1.set_xlim(632.70, 672.41)
-# ax_xy2.set_xlim(632.70, 672.41)
-# ax_xy3.set_xlim(632.70, 672.41)
-
-# ax_map = fig_xy.add_subplot(gs[:, 2])
-
-# mplcursors.cursor(ax_xy1).connect("add", lambda sel: sel.annotation.set_text(f'({sel.target[0]:.2f}, {sel.target[1]:.2f})'))
-# mplcursors.cursor(ax_xy2).connect("add", lambda sel: sel.annotation.set_text(f'({sel.target[0]:.2f}, {sel.target[1]:.2f})'))
-# mplcursors.cursor(ax_xy3).connect("add", lambda sel: sel.annotation.set_text(f'({sel.target[0]:.2f}, {sel.target[1]:.2f})'))
-
-df[df.Ebeam != 240].x.to_numpy(), df[df.Ebeam != 240].y.to_numpy()
-
-time_interval_ax = 'from672.68to709.79'
-
-x_xy = df[df.time_interval == time_interval_ax].x.to_numpy()
-y_xy = df[df.time_interval == time_interval_ax].y.to_numpy()
-phi_xy = df[df.time_interval == time_interval_ax].Phi.to_numpy()
-rho_xy = df[df.time_interval == time_interval_ax].rho.to_numpy()
-t_xy = np.linspace(672.68, 709.79, len(phi_xy))
-
-px = 1/plt.rcParams['figure.dpi']  # pixel in inches
-fig_xy = plt.figure(figsize=(1600*px, 900*px), layout="constrained")
-
-widths = [1, 1, 3]
-gs = GridSpec(3, 3, figure=fig_xy, width_ratios=widths)
-marker = 'o'
-linewidth = 4
-markersize = 10
-
-ax_xy1 = fig_xy.add_subplot(gs[0, :-1])
-ax_xy2 = fig_xy.add_subplot(gs[1, :-1])
-ax_xy3 = fig_xy.add_subplot(gs[2, :-1])
-
-ax_map = fig_xy.add_subplot(gs[:, 2])
-
-mplcursors.cursor(ax_xy1).connect("add", lambda sel: sel.annotation.set_text(f'({sel.target[0]:.2f}, {sel.target[1]:.2f})'))
-mplcursors.cursor(ax_xy2).connect("add", lambda sel: sel.annotation.set_text(f'({sel.target[0]:.2f}, {sel.target[1]:.2f})'))
-mplcursors.cursor(ax_xy3).connect("add", lambda sel: sel.annotation.set_text(f'({sel.target[0]:.2f}, {sel.target[1]:.2f})'))
+    fig_inspector, ax_inspector = plt.subplots()
+    
+    for ti in time_intervals.set():
+        ax_inspector.plot(df["A_QCM"])
 
 #%% Interpolate dots and plot 2d map
 
 if twoD_plot_flag:
-    # fig_map, ax_map = plt.subplots()
+    fig_map, ax_map = plt.subplots()
     
     imd.plot_t10_contour(ax_map)
     
@@ -831,7 +862,7 @@ if twoD_plot_flag:
     if log_colorbar_flag == 0:
         norm = cm.colors.Normalize(vmax=max_val, vmin=min_val)
     elif log_colorbar_flag == 1:
-        norm = cm.colors.LogNorm(vmin=0.005, vmax=0.5)
+        norm = cm.colors.LogNorm(vmin=0.01, vmax=0.07)
     
     x, y = np.linspace(xmin, xmax, Npoints), np.linspace(ymin, ymax, Npoints)
     x, y = np.meshgrid(x, y)
@@ -897,12 +928,13 @@ if twoD_plot_flag:
         str_Zd = str(round(df['Zd'].to_numpy()[i], 3))
         str_RhoEval = str(round(np.sqrt((df['x'].to_numpy()[i])**2+(df['y'].to_numpy()[i])**2),3))
         str_A2 = str(round(df['Ua2'].to_numpy()[i], 3))
+        str_A_QCM = str(round(df['A_QCM'].to_numpy()[i], 3))
         if signal_name == 'Phi':
             label = f'Shot: {str_shot}\nE: {str_Ebeam}\nTI: {str_TI}\nne: {str_ne}\n\
     Phi: {str_Phi}\nx = {str_x}\ny = {str_y}\nRho: {str_RhoEval}\nZd: {str_Zd}\n A2: {str_A2}'
         elif signal_name == 'RMSPhi':
             label = f'Shot: {str_shot}\nE: {str_Ebeam}\nTI: {str_TI}\nne: {str_ne}\n\
-    RMSPhi: {str_RMSPhi}\nx = {str_x}\ny = {str_y}'
+    RMSPhi: {str_RMSPhi}\nx = {str_x}\ny = {str_y}' 
         elif signal_name == 'Itot':
             label = f'Shot: {str_shot}\nE: {str_Ebeam}\nTI: {str_TI}\nne: {str_ne}\n\
     Itot: {str_Itot}\nx = {str_x}\ny = {str_y}'
@@ -912,21 +944,24 @@ if twoD_plot_flag:
         elif signal_name == 'RelRMSItot':
             label = f'Shot: {str_shot}\nE: {str_Ebeam}\nTI: {str_TI}\nne: {str_ne}\n\
     RelRMSItot: {str_RelRMSItot}\nx = {str_x}\ny = {str_y}'
+        elif signal_name == 'A_QCM':
+            label = f'Shot: {str_shot}\nE: {str_Ebeam}\nTI: {str_TI}\nne: {str_ne}\n\
+    A_QCM: {str_A_QCM}\nx = {str_x}\ny = {str_y}'
         labels.append(label)
     
     if log_colorbar_flag:
         sc = ax_map.scatter(df['x'].to_numpy(), df['y'].to_numpy(), c=dots_color, 
-                        norm=norm, s=100, cmap=cmap, edgecolors='black')
+                        norm=norm, s=100*show_dots_flag, cmap=cmap, edgecolors='black')
     else:
-        # sc = ax_map.scatter(df['x'].to_numpy(), df['y'].to_numpy(), c=dots_color, 
-        #                 vmin=min_val, vmax=max_val, s=100*show_dots_flag, 
-        #                 cmap=cmap, edgecolors='black')
+        sc = ax_map.scatter(df['x'].to_numpy(), df['y'].to_numpy(), c=dots_color, 
+                        vmin=min_val, vmax=max_val, s=100*show_dots_flag, 
+                        cmap=cmap, edgecolors='black')
         sc = ax_map.scatter(df['x'].to_numpy(), df['y'].to_numpy(), c=dots_color, 
                         vmin=min_val, vmax=max_val, s=250*show_dots_flag, 
                         cmap=cmap, edgecolors='black')
-        sc = ax_map.scatter(df[df.Ebeam != 240].x.to_numpy(), df[df.Ebeam != 240].y.to_numpy(), c='gray', 
-                        vmin=min_val, vmax=max_val, s=250*show_dots_flag, 
-                        cmap=cmap, edgecolors='black')
+        # sc = ax_map.scatter(df[df.Ebeam != 240].x.to_numpy(), df[df.Ebeam != 240].y.to_numpy(), c='gray', 
+        #                 vmin=min_val, vmax=max_val, s=250*show_dots_flag, 
+        #                 cmap=cmap, edgecolors='black')
             
     mplcursors.cursor(ax_map).connect(
         "add", lambda sel: sel.annotation.set_text(labels[sel.index]))
@@ -956,7 +991,9 @@ if twoD_plot_flag:
     ax_map.tick_params(axis='both', labelsize=text_size)
     ax_map.set_xlim(1.17, 28.93)
     ax_map.set_ylim(-4.76, 22.93)
+    plt.show()
     
+if xy_lines_plot_flag:
     #XY plot
     # ax_map.set_xlim(1.17, 28.93)
     # ax_map.set_ylim(-4.76, 22.93)

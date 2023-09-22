@@ -1,23 +1,11 @@
-2D_T10 23.08.23.rar
-/T10_69307_B24_I230_zdfilter0.5.dat
-/T10_69309_B24_I230_zdfilter0.5.dat
-/T10_69310_B24_I230_zdfilter0.5.dat
-/T10_69311_B24_I230_zdfilter0.5.dat
-/T10_69312_B24_I230_zdfilter0.5.dat
-/T10_69313_B24_I230_zdfilter0.5.dat
-/T10_69315_B24_I230_zdfilter0.5.dat
-/T10_69316_B24_I230_zdfilter0.5.dat
-/T10_69317_B24_I230_zdfilter0.5.dat
-/T10_69318_B24_I230_zdfilter0.5.dat
-/T10_69319_B24_I230_zdfilter0.5.dat
-/T10_test2_B24_I230_zdfilter0.5.dat
-/T10_test_B24_I230_zdfilter0.5.dat
-/.idea/workspace.xml
-/T10_69316_B24_I230_zdfilter0.5.dat.list
+.spyproject/
+__pycache__/
 lists/
 objects/
-Regimes/
-RMSPhi/
-__pycache__/
 OLD/
-.spyproject/
+RMSPhi/
+2D_T10 23.08.23.rar
+
+
+
+
